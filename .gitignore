@@ -1,10 +1,2 @@
-.cache
-.lsp-session-v1
-auto-save-list
-eln-cache
-elpa
-history
-recentf
-transient
-*~
-\#*
+*
+!init.el

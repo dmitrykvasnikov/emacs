@@ -18,10 +18,18 @@
                                      ;; ... and make it relative
 (global-display-line-numbers-mode 1) ;; display line numbers
 (setq inhibit-startup-message t)     ;; no splashscreen
-(fset `yes-or-no-p `y-or-n-p)        ;; answer questions with y/n (instead of
-				     ;; yes/no)
 
 (setq-default initial-scratch-message ";; He who walks alone  ... Always walks uphill but ... Beneath his feet are the ... Broken bones of flawed men ...\n\n")
+
+;; Editor settings
+(fset `yes-or-no-p `y-or-n-p)        ;; answer questions with y/n (instead of
+				     ;; yes/no)
+(setq make-backup-files nil)         ;; do not make backup files
+;; move all auto-saved files into ~/.emacs.d/autosave
+(setq auto-save-dir (expand-file-name "autosave" user-emacs-directory))
+(make-directory auto-save-dir t)
+(setq auto-save-file-name-transforms
+      `((".*" ,auto-save-dir t)))
 
 ;; Fonts
 (set-face-attribute 'default nil
@@ -70,15 +78,7 @@
   (vertico-count 8)
   (vertico-cycle t)
   (vertico-resize nil)
-  (vertico-scroll-margin 0))
-
-(use-package orderless
-  :after vertico
-  :custom
-  (completion-category-defaults nil)
-  (completion-styles '(orderless partial-completion))
-  (completion-category-overrides '((file (styles . (partial-completion))))))
-
+  (vertico-scroll-margin 0		;
 (use-package marginalia
   :after vertico
   :init
@@ -209,12 +209,12 @@
   (lsp-ui-sideline-update-mode 'line)
   (lsp-ui-sideline-diagnostic-max-lines 20)
   
-  (lsp-signature-auto-activate nil)
+  (lsp-signature-auto-activate t)
   (lsp-signature-render-documentation nil)
 
   (lsp-modeline-diagnostics-enable nil)
-  (lsp-modeline-code-actions-enable nil)
-  (lsp-modeline-workspace-status-enable nil)
+  (lsp-modeline-code-actions-enable t)
+  (lsp-modeline-workspace-status-enable t)
   
   (lsp-headerline-breadcrumb-enable nil)
   (lsp-headerline-breadcrumb-icons-enable nil)
@@ -250,7 +250,22 @@
   (setq flycheck-indication-mode 'right-fringe)
   (setq flycheck-display-errors-function #'flycheck-display-error-messages-unless-error-list))
 
-(use-package popup)
+(defun toggle-flycheck-underline ()
+  "Toggle underlining for flycheck warnings."
+  (interactive)
+  (if (eq (face-attribute 'flycheck-warning :underline) nil)
+     (progn
+	(set-face-attribute 'flycheck-info nil :underline '(:style wave :color "ForestGreen"))
+	(set-face-attribute 'flycheck-warning nil :underline '(:style wave :color "DarkOrange"))
+	(message "Flycheck undelines enabled"))
+    (progn
+        (set-face-attribute 'flycheck-info nil :underline nil)
+	(set-face-attribute 'flycheck-warning nil :underline nil))
+        (message "Flycheck underlines disabled")))
+
+(global-set-key (kbd "C-; -") 'toggle-flycheck-underline)
+
+;;(use-package popup)
 
 (use-package flycheck-popup-tip)
 

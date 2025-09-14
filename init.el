@@ -188,42 +188,40 @@
   (setq lsp-auto-configure t)
   (setq lsp-lens-place-position 'above-line)
   :custom
-  ;; (lsp-log-io nil)
-  ;; (lsp-keep-workspace-alive nil)
-  ;; (lsp-semantic-tokens-enable nil)
-  ;; (lsp-session-file "~/.emacs.d/.lsp-session-v1")
-  
-  ;; (lsp-enable-xref t)
-  ;; (lsp-enable-links t)
-  ;; (lsp-enable-imenu nil)
-  ;; (lsp-enable-indentation nil)
-  ;; (lsp-eldoc-enable-hover nil)
-  ;; (lsp-enable-file-watchers nil)
-  ;; (lsp-enable-symbol-highlighting t)
-  ;; (lsp-enable-on-type-formatting nil)
-  ;; (lsp-enable-text-document-color nil)
-  ;; (lsp-enable-suggest-server-download t)
+  (lsp-log-io nil)
+  (lsp-keep-workspace-alive nil)
+  (lsp-semantic-tokens-enable nil)
+    
+  (lsp-enable-xref t)
+  (lsp-enable-links t)
+  (lsp-enable-imenu nil)
+  (lsp-enable-indentation nil)
+  (lsp-eldoc-enable-hover t)
+  (lsp-enable-file-watchers nil)
+  (lsp-enable-symbol-highlighting nil)
+  (lsp-enable-on-type-formatting nil)
+  (lsp-enable-text-document-color nil)
+  (lsp-enable-suggest-server-download t)
 
-  ;; (lsp-ui-doc-enable nil)
-  ;; (lsp-ui-sideline-delay 0)
-  ;; (lsp-ui-sideline-show-hover nil)
-  ;; (lsp-ui-sideline-update-mode 'line)
-  ;; (lsp-ui-sideline-diagnostic-max-lines 20)
+  (lsp-ui-doc-enable nil)
+  (lsp-ui-sideline-enable nil)
+  (lsp-ui-sideline-show-hover nil)
+  (lsp-ui-sideline-update-mode 'line)
+  (lsp-ui-sideline-diagnostic-max-lines 20)
   
-  ;; (lsp-signature-auto-activate nil)
-  ;; (lsp-signature-render-documentation nil)
+  (lsp-signature-auto-activate nil)
+  (lsp-signature-render-documentation nil)
 
-  ;; (lsp-modeline-diagnostics-enable nil)
-  ;; (lsp-modeline-code-actions-enable nil)
-  ;; (lsp-modeline-workspace-status-enable nil)
+  (lsp-modeline-diagnostics-enable nil)
+  (lsp-modeline-code-actions-enable nil)
+  (lsp-modeline-workspace-status-enable nil)
   
-  ;; (lsp-headerline-breadcrumb-enable nil)
-  ;; (lsp-headerline-breadcrumb-icons-enable nil)
-  ;; (lsp-headerline-breadcrumb-enable-diagnostics nil)
-  ;; (lsp-headerline-breadcrumb-enable-symbol-numbers nil)
-  
+  (lsp-headerline-breadcrumb-enable nil)
+  (lsp-headerline-breadcrumb-icons-enable nil)
+  (lsp-headerline-breadcrumb-enable-diagnostics nil)
+  (lsp-headerline-breadcrumb-enable-symbol-numbers nil)
+   
   (lsp-completion-show-kind t)
-  (lsp-completion-provider :none)
   (lsp-diagnostics-provider :flycheck))
 
 ;; Install and configure lsp-haskell
@@ -246,17 +244,20 @@
   :custom
   (flycheck-help-echo-function nil)
   (flycheck-display-errors-delay 0.0)
-  (flycheck-auto-display-errors-after-checking t))
+  (flycheck-auto-display-errors-after-checking t)
+  :config
+  (setq flycheck-check-syntax-automatically '(idle-change save mode-enabled))
+  (setq flycheck-indication-mode 'right-fringe)
+  (setq flycheck-display-errors-function #'flycheck-display-error-messages-unless-error-list))
 
 (use-package popup)
 
 (use-package flycheck-popup-tip)
-(use-package flycheck-pos-tip)
 
-(eval-after-load 'flycheck
- (if (display-graphic-p)
-     (flycheck-pos-tip-mode)
-     (flycheck-popup-tip-mode)))
+(use-package flycheck-popup-tip
+  :after flycheck
+  :config
+  (add-hook 'flycheck-mode-hook #'flycheck-popup-tip-mode))
 
 ;;(setq flycheck-pos-tip-display-errors-tty-function #'flycheck-popup-tip-show-popup)
 ;;(flycheck-pos-tip-mode)

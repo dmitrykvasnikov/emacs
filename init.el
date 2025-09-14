@@ -209,12 +209,12 @@
   (lsp-ui-sideline-update-mode 'line)
   (lsp-ui-sideline-diagnostic-max-lines 20)
   
-  (lsp-signature-auto-activate nil)
+  (lsp-signature-auto-activate t)
   (lsp-signature-render-documentation nil)
 
   (lsp-modeline-diagnostics-enable nil)
-  (lsp-modeline-code-actions-enable nil)
-  (lsp-modeline-workspace-status-enable nil)
+  (lsp-modeline-code-actions-enable t)
+  (lsp-modeline-workspace-status-enable t)
   
   (lsp-headerline-breadcrumb-enable nil)
   (lsp-headerline-breadcrumb-icons-enable nil)
@@ -250,7 +250,22 @@
   (setq flycheck-indication-mode 'right-fringe)
   (setq flycheck-display-errors-function #'flycheck-display-error-messages-unless-error-list))
 
-(use-package popup)
+(defun toggle-flycheck-underline ()
+  "Toggle underlining for flycheck warnings."
+  (interactive)
+  (if (eq (face-attribute 'flycheck-warning :underline) nil)
+     (progn
+	(set-face-attribute 'flycheck-info nil :underline '(:style wave :color "ForestGreen"))
+	(set-face-attribute 'flycheck-warning nil :underline '(:style wave :color "DarkOrange"))
+	(message "Flycheck undelines enabled"))
+    (progn
+        (set-face-attribute 'flycheck-info nil :underline nil)
+	(set-face-attribute 'flycheck-warning nil :underline nil))
+        (message "Flycheck underlines disabled")))
+
+(global-set-key (kbd "C-; -") 'toggle-flycheck-underline)
+
+;;(use-package popup)
 
 (use-package flycheck-popup-tip)
 

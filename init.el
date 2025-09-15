@@ -78,7 +78,8 @@
   (vertico-count 8)
   (vertico-cycle t)
   (vertico-resize nil)
-  (vertico-scroll-margin 0		;
+  (vertico-scroll-margin 0))
+					
 (use-package marginalia
   :after vertico
   :init

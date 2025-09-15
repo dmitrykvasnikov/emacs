@@ -1,2 +1,27 @@
+<<<<<<< HEAD
 *
 !init.el
+||||||| 88e65b5
+.cache
+.lsp-session-v1
+auto-save-list
+eln-cache
+elpa
+history
+recentf
+transient
+*~
+\#*
+=======
+.cache
+.lsp-session-v1
+auto-save-list
+eln-cache
+elpa
+history
+recentf
+transient
+*~
+\#*
+.#*
+>>>>>>> 41a6a02ebcc198819e3529db35761d1d34af2036

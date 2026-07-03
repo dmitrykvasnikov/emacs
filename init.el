@@ -70,6 +70,7 @@
 (blink-cursor-mode -1)
 (column-number-mode)
 (xterm-mouse-mode 1)
+(setq make-cursor-line-fully-visible nil)
 (electric-pair-mode 1)
 (global-hl-line-mode 1)
 (setq scroll-preserve-screen-position t)
@@ -89,6 +90,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Packages
 (use-package all-the-icons)
+
+;;(use-package nerd-icons)
 
 (use-package doom-modeline
   :init (doom-modeline-mode 1)
@@ -139,6 +142,13 @@
   (vertico-cycle t)
   (vertico-resize nil)
   (vertico-scroll-margin 7))
+
+(use-package vertico-directory
+  :ensure nil
+  :after vertico
+  :bind (:map vertico-map
+         ("RET"   . vertico-directory-enter)
+         ("DEL"   . vertico-directory-delete-word)))
 
 (use-package orderless
   :custom

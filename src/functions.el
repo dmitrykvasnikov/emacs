@@ -55,5 +55,9 @@ If current window has full frame width, split right; otherwise split below."
       (switch-to-minibuffer)
     (call-interactively #'execute-extended-command)))
 
+(defun dk/clang-fos ()
+  (when (locate-dominating-file default-directory ".clang-format")
+    (add-hook 'before-save-hook #'clang-format-buffer nil t)))
+
 (provide 'functions.el)
 ;;; functions.el ends here

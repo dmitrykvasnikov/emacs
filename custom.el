@@ -5,9 +5,10 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(all-the-icons-dired avy cape consult-projectile corfu-terminal
-			 diredfl doom-modeline doom-themes ef-themes
-			 eldoc-box embark-consult evil expand-region
+   '(all-the-icons-dired avy cape clang-format consult-projectile
+			 corfu-terminal diredfl doom-modeline
+			 doom-themes ef-themes eldoc-box
+			 embark-consult evil expand-region
 			 flymake-popon format-all gruvbox-theme
 			 haskell-mode haskell-ts-mode helpful
 			 json-mode kind-icon magit marginalia

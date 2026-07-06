@@ -216,57 +216,25 @@
 (use-package eglot
   :ensure nil
   :hook ((haskell-mode . eglot-ensure)
-	 (rust-mode . eglot-ensure)) ; Automatically start Eglot in Haskell buffers
+	 (c-ts-mode . eglot-ensure)
+	 (c-mode . eglot-ensure)
+	 (c++-ts-mode . eglot-ensure)
+	 (c++-mode . eglot-ensure))
+;;	 (rust-mode . eglot-ensure))      ;; Rustic is enabled
   :config
   (add-to-list 'eglot-server-programs
 	       '((haskell-mode . ("haskell-language-server-wrapper" "--lsp"))
-		 (rust-ts-mode rust-mode). ("rust-analyzer" :initializationOptions
-					    (:check (:command "clippy")))))
-
+		((rust-ts-mode rust-mode). ("rust-analyzer" :initializationOptions
+					   (:check (:command "clippy"))))
+		(c-ts-mode c-mode c++-ts-mode c++-mode) .
+                 ("clangd" "--clang-tidy"
+                  :initializationOptions (:fallbackFlags ["-std=c23"]))))
+  (add-hook 'prog-mode-hook 'eldoc-mode)
   (setq eglot-events-buffer-config '(:size 0))
   (setq eglot-extend-to-xref t)             ; start eglot for cross-referenced files
-  (setq eglot-code-actions-indications '(eldoc-hint margin))
-
-  :config
-  (add-hook 'prog-mode-hook 'eldoc-mode))
-
-;; (with-eval-after-load 'eglot
-;;   (with-eval-after-load 'eldoc
-;;     ;; Show only the first line of the documentation (the type signature) in the echo area
-;;     (setq eldoc-echo-area-use-multiline 1)
-
-    ;; Alternatively, use this strategy to display the signature cleanly
-    ;; (setq eldoc-documentation-strategy #'eldoc-documentation-default)))
+  (setq eglot-code-actions-indications '(eldoc-hint margin)))
 
 (setq eglot-put-doc-in-buffer t) ; Keeps the heavy markdown out of the tiny echo area
-
-
-;; (with-eval-after-load 'eglot
-;;   (defun my-eglot-format-markup-haskell-fix (markup)
-;;     "Clean up Haskell Markdown code fences from HLS before Eglot renders them."
-;;     (pcase-let ((`(,string ,mode)
-;;                  (if (stringp markup)
-;;                      (list markup 'gfm-view-mode)
-;;                    (list (plist-get markup :value)
-;;                          (pcase (plist-get markup :kind)
-;;                            ("markdown" 'gfm-view-mode)
-;;                            ("plaintext" 'text-mode)
-;;                            (_ major-mode))))))
-;;       (with-temp-buffer
-;;         ;; Clean the raw string of the backtick block tags completely
-;;         (when string
-;;           (setq string (string-replace "```haskell\n" "" string))
-;;           (setq string (string-replace "
-;; ```" "" string)))
-;;         (insert string)
-;;         (let ((inhibit-message t)
-;;               (message-log-max nil))
-;;           (ignore-errors (delay-mode-hooks (funcall mode))))
-;;         (font-lock-ensure)
-;;         (string-trim (buffer-string)))))
-
-;;   ;; Force eglot to use our cleaned up formatter
-;;   (advice-add 'eglot--format-markup :override #'my-eglot-format-markup-haskell-fix))
 
 (with-eval-after-load 'eglot
   (defun my-eglot-clean-haskell-markdown (args)
@@ -280,7 +248,6 @@
               (plist-put markup :value clean-str)
             (setcar args clean-str)))))
     args)
-
   (advice-add 'eglot--format-markup :filter-args #'my-eglot-clean-haskell-markdown))
 
 (add-hook 'haskell-mode-hook
@@ -404,8 +371,8 @@
 
 (use-package haskell-mode
   :mode ("\\.hs\\'" . haskell-mode)
-  :hook ((haskell-mode . haskell-indentation-mode)
-	 (haskell-mode . haskell-doc-mode))
+  :hook ((haskell-mode . haskell-indentation-mode))
+	;; (haskell-mode . haskell-doc-mode))
   :bind
   (:map haskell-mode-map
 	("C-c C-l" . haskell-process-load-file)
@@ -425,6 +392,9 @@
   (rustic-mode . eglot-ensure)
   :config
   (setq rustic-format-on-save t))
+
+(use-package clang-format
+  :hook ((c-ts-mode c-mode c++-ts-mode c++-mode) . dk/clang-fos))
 
 ;; (add-to-list 'display-buffer-alist
 ;; 	     '("\\*haskell\\*"

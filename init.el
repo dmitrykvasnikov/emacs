@@ -222,17 +222,26 @@
 	 (c++-mode . eglot-ensure)
 	 (rust-mode . eglot-ensure))      ;; Rustic is enabled
   :config
-  (add-to-list 'eglot-server-programs
-	       '(((haskell-mode haskell-ts-mode) . ("haskell-language-server-wrapper" "--lsp"))
-		 ((rust-ts-mode rust-mode) . ("rust-analyzer" :initializationOptions
-					      (:check (:command "clippy"))))
-		 ((c-ts-mode c-mode c++-ts-mode c++-mode) .
-                  ("clangd" "--clang-tidy"
-                   :initializationOptions (:fallbackFlags ["-std=c23"])))))
+  ;; (add-to-list 'eglot-server-programs
+  ;; 	       '(((haskell-mode haskell-ts-mode) . ("haskell-language-server-wrapper" "--lsp"))
+  ;; 		 ((rust-ts-mode rust-mode) . ("rust-analyzer" :initializationOptions
+  ;; 					      (:check (:command "clippy"))))
+  ;; 		 ((c-ts-mode c-mode c++-ts-mode c++-mode) .
+  ;;                 ("clangd" "--clang-tidy"
+  ;;                  :initializationOptions (:fallbackFlags ["-std=c23"])))))
   (add-hook 'prog-mode-hook 'eldoc-mode)
   (setq eglot-events-buffer-config '(:size 0))
   (setq eglot-extend-to-xref t)             ; start eglot for cross-referenced files
   (setq eglot-code-actions-indications '(eldoc-hint margin)))
+
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs
+               ''(((haskell-mode haskell-ts-mode) . ("haskell-language-server-wrapper" "--lsp"))
+		 ((rust-ts-mode rust-mode) . ("rust-analyzer" :initializationOptions
+					      (:check (:command "clippy"))))
+		 ((c-ts-mode c-mode c++-ts-mode c++-mode) .
+                  ("clangd" "--clang-tidy"
+                   :initializationOptions (:fallbackFlags ["-std=c23"]))))))
 
 (setq eglot-put-doc-in-buffer t) ; Keeps the heavy markdown out of the tiny echo area
 

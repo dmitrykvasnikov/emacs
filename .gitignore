@@ -1,5 +1,6 @@
 eln-cache/
 elpa/
+transient/
 tree-sitter/
 auto-save-list
 history
@@ -10,6 +11,7 @@ projects.eld
 recentf
 recentf.eld
 projectile-bookmarks.eld
+projectile-frecency.eld
 \#*
 .#*
 *~

@@ -219,16 +219,16 @@
 	 (c-ts-mode . eglot-ensure)
 	 (c-mode . eglot-ensure)
 	 (c++-ts-mode . eglot-ensure)
-	 (c++-mode . eglot-ensure))
-;;	 (rust-mode . eglot-ensure))      ;; Rustic is enabled
+	 (c++-mode . eglot-ensure)
+	 (rust-mode . eglot-ensure))      ;; Rustic is enabled
   :config
   (add-to-list 'eglot-server-programs
-	       '((haskell-mode . ("haskell-language-server-wrapper" "--lsp"))
-		((rust-ts-mode rust-mode). ("rust-analyzer" :initializationOptions
-					   (:check (:command "clippy"))))
-		(c-ts-mode c-mode c++-ts-mode c++-mode) .
-                 ("clangd" "--clang-tidy"
-                  :initializationOptions (:fallbackFlags ["-std=c23"]))))
+	       '(((haskell-mode haskell-ts-mode) . ("haskell-language-server-wrapper" "--lsp"))
+		 ((rust-ts-mode rust-mode) . ("rust-analyzer" :initializationOptions
+					      (:check (:command "clippy"))))
+		 ((c-ts-mode c-mode c++-ts-mode c++-mode) .
+                  ("clangd" "--clang-tidy"
+                   :initializationOptions (:fallbackFlags ["-std=c23"])))))
   (add-hook 'prog-mode-hook 'eldoc-mode)
   (setq eglot-events-buffer-config '(:size 0))
   (setq eglot-extend-to-xref t)             ; start eglot for cross-referenced files

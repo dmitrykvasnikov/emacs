@@ -420,6 +420,12 @@
   :ensure t
   :mode ("README\\.md\\'" . gfm-mode)
   :init (setq markdown-command "multimarkdown")
+  :custom
+  ;; Scale header fonts relative to text size
+  (markdown-header-scaling t)
+  :config
+  ;; Hide the raw markdown markup characters (*, #, etc.) for a WYSIWYG look
+  (add-hook 'markdown-mode-hook #'markdown-toggle-markup-hiding)
   :bind (:map markdown-mode-map
          ("C-c C-e" . markdown-do)))
 

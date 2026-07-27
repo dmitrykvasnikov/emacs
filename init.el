@@ -219,7 +219,8 @@
 	 (c-ts-mode . eglot-ensure)
 	 (c-mode . eglot-ensure)
 	 (c++-ts-mode . eglot-ensure)
-	 (c++-mode . eglot-ensure))
+	 (c++-mode . eglot-ensure)
+	 (go-mode . eglot-ensure))
 	 ;;(rust-mode . eglot-ensure))      ;; Rustic is enabled
   :config
   (add-hook 'prog-mode-hook 'eldoc-mode)
@@ -251,13 +252,6 @@
             (setcar args clean-str)))))
     args)
   (advice-add 'eglot--format-markup :filter-args #'my-eglot-clean-haskell-markdown))
-
-(add-hook 'haskell-mode-hook
-          (lambda ()
-            ;; Disable the old school doc mode so it doesn't fight with Eglot
-            (haskell-doc-mode -1)))
-            ;; Start eglot automatically (optional, if you haven't already)
-            ;; (eglot-ensure)))
 
 (use-package xref
   :ensure nil
@@ -383,9 +377,24 @@
   :config
   (setq haskell-process-type 'cabal-repl))
 
+(add-hook 'haskell-mode-hook
+          (lambda ()
+            ;; Disable the old school doc mode so it doesn't fight with Eglot
+            (haskell-doc-mode -1)))
+            ;; Start eglot automatically (optional, if you haven't already)
+            ;; (eglot-ensure)))
+
 (use-package rust-mode
   :config
   (setq rust-format-on-save t))
+
+(use-package go-mode
+  :ensure t
+  :mode "\\.go\\'")
+
+(add-hook 'go-mode-hook
+	  (lambda()
+	    (add-hook 'before-save-hook #'gofmt-before-save nil t)))
 
 (use-package rustic
   :custom

@@ -148,7 +148,25 @@
   :after vertico
   :bind (:map vertico-map
          ("RET"   . vertico-directory-enter)
-         ("DEL"   . vertico-directory-delete-word)))
+         ;; Plain commands, not the vertico-directory-* variants: those delete a
+         ;; whole path component when point is right after "/", which makes
+         ;; Backspace and Shift-Backspace identical at a directory boundary.
+         ("DEL"   . delete-backward-char)
+         ("S-<backspace>" . backward-kill-word)
+         ;; Up one directory in file prompts; plain word kill everywhere else
+         ("M-DEL" . vertico-directory-delete-word)))
+
+(use-package vertico-multiform
+  :ensure nil
+  :after vertico
+  :custom
+  ;; Sort file prompts (find-file, dired, ...) by name.  Other prompts keep the
+  ;; default history/length ordering.  Consult sources that declare their own
+  ;; display-sort-function, e.g. consult-recent-file, are unaffected.
+  (vertico-multiform-categories
+   '((file (vertico-sort-function . vertico-sort-alpha))))
+  :config
+  (vertico-multiform-mode 1))
 
 (use-package orderless
   :custom
@@ -416,23 +434,101 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Markdown mode
+;; (use-package markdown-mode
+;;   :ensure t
+;;   :mode ("README\\.md\\'" . gfm-mode)
+;;   :init (setq markdown-command "multimarkdown")
+;;   :custom
+;;   ;; Scale header fonts relative to text size
+;;   (markdown-header-scaling t)
+;;   :config
+;;   ;; Hide the raw markdown markup characters (*, #, etc.) for a WYSIWYG look
+;;   (add-hook 'markdown-mode-hook #'markdown-toggle-markup-hiding)
+;;   :bind (:map markdown-mode-map
+;;          ("C-c C-e" . markdown-do)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Markdown mode
 (use-package markdown-mode
   :ensure t
-  :mode ("README\\.md\\'" . gfm-mode)
-  :init (setq markdown-command "multimarkdown")
+  ;; GFM everywhere: tables, strikethrough, checkboxes, ``` fences
+  :mode (("\\.md\\'"       . gfm-mode)
+         ("\\.markdown\\'" . gfm-mode)
+         ("README\\.md\\'" . gfm-mode))
+  :hook (markdown-mode . dk/markdown-prose)
   :custom
-  ;; Scale header fonts relative to text size
+  (markdown-command '("pandoc" "--from=gfm" "--to=html5" "--standalone"))
   (markdown-header-scaling t)
-  :config
-  ;; Hide the raw markdown markup characters (*, #, etc.) for a WYSIWYG look
-  (add-hook 'markdown-mode-hook #'markdown-toggle-markup-hiding)
+  (markdown-hide-markup t)                  ;; set it, never toggle it in a hook
+  (markdown-hide-urls t)                    ;; [text](url) -> text ⚓
+  (markdown-fontify-code-blocks-natively t)
+  (markdown-fontify-whole-heading-line t)
+  (markdown-enable-math t)
+  (markdown-enable-highlighting-syntax t)
+  (markdown-asymmetric-header t)
+  (markdown-list-item-bullets '("•" "◦" "▪" "▫"))
   :bind (:map markdown-mode-map
-         ("C-c C-e" . markdown-do)))
+         ("C-c C-e"  . markdown-do)
+         ("C-c C-v"  . gfm-view-mode)  ;; read-only fully-rendered view
+         ("M-<up>"   . markdown-move-up)
+         ("M-<down>" . markdown-move-down)))
+
+(use-package valign
+  :ensure t
+  :hook ((markdown-mode org-mode) . valign-mode)
+  :custom (valign-fancy-bar t))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ORG mode
-(setq org-agenda-files (list "~/org")
-      org-log-done 'time)
+(use-package org
+  :ensure nil
+  :hook (org-mode . dk/org-prose)
+  :custom
+  (org-agenda-files (list "~/org"))
+  (org-log-done 'time)
+  (org-log-into-drawer t)
+  ;; Rendering
+  (org-startup-indented t)                       ;; virtual indent, no leading stars
+  (org-hide-emphasis-markers t)                  ;; /italic/ -> italic
+  (org-pretty-entities t)                        ;; \alpha -> α
+  (org-pretty-entities-include-sub-superscripts t)
+  (org-ellipsis " ▾")
+  (org-fontify-quote-and-verse-blocks t)
+  (org-fontify-whole-heading-line t)
+  (org-startup-with-inline-images t)
+  (org-image-actual-width '(600))
+  ;; Source blocks
+  (org-src-fontify-natively t)
+  (org-src-tab-acts-natively t)
+  (org-edit-src-content-indentation 0)
+  (org-src-preserve-indentation t)
+  ;; Editing behaviour
+  (org-catch-invisible-edits 'show-and-error)    ;; never silently edit folded text
+  (org-return-follows-link t)
+  (org-insert-heading-respect-content t)
+  (org-auto-align-tags nil)                      ;; let org-modern place tags
+  (org-tags-column 0)
+  (org-imenu-depth 4))
+
+(use-package org-modern
+  :ensure t
+  :hook (org-mode . org-modern-mode)
+  :custom
+  (org-modern-table nil)          ;; valign owns tables — don't run both
+  (org-modern-star 'replace)      ;; ◉ ○ ◈ instead of ***; 'fold for folding indicators
+  (org-modern-hide-stars 'leading)
+  (org-modern-block-fringe nil)   ;; set nil unless you enable fringes in org
+  (org-modern-list '((?- . "–") (?+ . "•") (?* . "‣"))))
+
+(use-package org-appear
+  :ensure t
+  :hook (org-mode . org-appear-mode)
+  :custom
+  (org-appear-autoemphasis t)
+  (org-appear-autolinks t)
+  (org-appear-autosubmarkers t)
+  (org-appear-autoentities t)
+  (org-appear-delay 0.0))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Theme settings

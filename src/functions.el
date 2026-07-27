@@ -59,5 +59,17 @@ If current window has full frame width, split right; otherwise split below."
   (when (locate-dominating-file default-directory ".clang-format")
     (add-hook 'before-save-hook #'clang-format-buffer nil t)))
 
+;; Markdown prose display
+(defun dk/markdown-prose ()
+  "Prose-friendly display for Markdown buffers."
+  (visual-line-mode 1)
+  (setq-local line-spacing 0.15))
+
+;; Org prose display
+(defun dk/org-prose ()
+  "Prose-friendly display for Org buffers."
+  (visual-line-mode 1)
+  (setq-local line-spacing 0.15))
+
 (provide 'functions.el)
 ;;; functions.el ends here

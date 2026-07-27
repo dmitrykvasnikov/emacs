@@ -18,5 +18,10 @@
 (global-set-key (kbd "C-c k") (lambda() (interactive) (kill-buffer (current-buffer))))
 (global-set-key (kbd "C-c e") #'eval-buffer)
 
+;; Minibuffer editing: Shift-Backspace kills the previous word.
+;; `minibuffer-local-map' is the parent of every other minibuffer keymap
+;; (completion, must-match, vertico-map, ...), so one binding covers all prompts.
+(define-key minibuffer-local-map (kbd "S-<backspace>") #'backward-kill-word)
+
 (provide 'keymap)
 ;;; keymap.el ends here

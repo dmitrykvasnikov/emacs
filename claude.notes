@@ -1,0 +1,622 @@
+# Emacs configuration review — analysis & refactoring proposal
+
+Date: 2026-07-28
+Reviewed: `early-init.el`, `init.el`, `custom.el`, `src/{functions,keymap,vars}.el`
+Environment: GNU Emacs 30.2, ~60 packages in `elpa/`, 32 vendored themes in `themes/`
+Nothing in the config was modified. This file is notes only.
+
+Method: findings marked **[verified]** were reproduced by loading the config in
+batch Emacs and/or byte-compiling it, not just by reading. Commands used are noted
+where relevant.
+
+---
+
+## 0. Summary
+
+The config is in good shape overall: `lexical-binding` everywhere, a consistent
+`dk/` namespace, `use-package` throughout, a modern completion stack
+(vertico + orderless + marginalia + consult + embark + corfu), and built-in
+`eglot`/`flymake` rather than heavier alternatives. Comments explain *why* in the
+non-obvious places (the vertico-directory DEL rationale, the valign/org-modern
+table conflict) — that is better than most personal configs.
+
+Three things are actually broken and silently doing nothing, and there is a set
+of duplicated/contradictory settings. Structurally, `init.el` has grown to 547
+lines and is the main thing worth refactoring.
+
+Priority order:
+
+| Pri | Item | Section |
+|-----|------|---------|
+| P0  | Dead eglot server config, dead `C-x C-p`, shadowed consult-projectile keys, `package-selected-packages nil` | §1 |
+| P1  | No-op / contradictory settings; tree-sitter installed but never wired up; LSP throughput | §1, §4 |
+| P2  | Split `init.el` into modules; move UI suppression into `early-init.el` | §3 |
+| P3  | Missing packages (magit, no-littering, apheleia, cape) and free built-ins | §4 |
+| P4  | README, Makefile/CI, theme pruning | §5 |
+
+---
+
+## 1. Confirmed bugs
+
+### B1 — All custom eglot server configuration is dead (`init.el:249-256`) — **P0**
+
+```elisp
+(add-to-list 'eglot-server-programs
+             ''(((haskell-mode haskell-ts-mode) . (...))   ; <-- two quotes
+               ...))
+```
+
+The `''` means a literal `(quote (...))` list is pushed onto
+`eglot-server-programs`. It matches no major mode, so the entry is inert.
+
+**[verified]** After loading the config and `(require 'eglot)`:
+
+```
+eglot-server-programs first entry:
+  '(((haskell-mode haskell-ts-mode) "haskell-language-server-wrapper" "--lsp") ...)
+rust entry lookup: ((rust-ts-mode rust-mode) "rust-analyzer")
+```
+
+The rust entry actually in effect is eglot's **built-in** one — so
+`rust-analyzer` is running **without** `:check (:command "clippy")`, and clangd
+is running **without** `--clang-tidy` and without `-std=c23`. Haskell works only
+because eglot ships a default HLS entry too.
+
+Fix — one `add-to-list` per entry, single quote:
+
+```elisp
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs
+               '((rust-ts-mode rust-mode)
+                 . ("rust-analyzer"
+                    :initializationOptions (:check (:command "clippy")))))
+  (add-to-list 'eglot-server-programs
+               '((c-ts-mode c-mode c++-ts-mode c++-mode)
+                 . ("clangd" "--clang-tidy"
+                    :initializationOptions (:fallbackFlags ["-std=c23"])))))
+```
+
+Note `add-to-list` prepends, and eglot takes the **first** match, so prepending
+is correct here.
+
+### B2 — `C-x C-p` is bound to a command that does not exist (`init.el:220`) — **P0**
+
+`consult-project-find` is not defined by consult (only `consult-project-buffer`
+exists). `use-package :bind` creates an autoload, so the key *looks* bound.
+
+**[verified]** Invoking it:
+
+```
+consult-project-find ERROR: (error "Autoloading file .../consult.elc
+  failed to define function consult-project-find")
+```
+
+Fix: use `consult-projectile-find-file` (already a dependency), or
+`project-find-file`, or `consult-fd`.
+
+### B3 — All four `consult-projectile` bindings are shadowed (`init.el:373-379`) — **P0**
+
+`:bind` without `:map` binds in the **global** map. But `projectile-mode-map`
+binds `C-c p` to `projectile-command-map`, and minor-mode maps outrank the global
+map — so `C-c p f` never reaches consult-projectile.
+
+**[verified]**
+
+```
+C-c p f -> projectile-find-file          (expected: consult-projectile-find-file)
+C-c p p -> projectile-switch-project     (expected: consult-projectile-switch-project)
+```
+
+Fix — bind inside the prefix map that wins:
+
+```elisp
+(use-package consult-projectile
+  :after projectile
+  :bind (:map projectile-command-map
+              ("f" . consult-projectile-find-file)
+              ("p" . consult-projectile-switch-project)
+              ("b" . consult-projectile-switch-to-buffer)
+              ("d" . consult-projectile-find-dir)))
+```
+
+### B4 — `package-selected-packages` is `nil` (`custom.el:7`) — **P0**
+
+**[verified]** `package-selected-packages: nil` after a full load.
+
+`M-x package-autoremove` treats every installed package as orphaned and will
+offer to delete all ~60 of them. Contributing cause: `custom.el` is loaded at
+`init.el:16`, *before* `(package-initialize)` at line 25, so Custom writes back a
+package list computed before packages exist.
+
+Fix: load `custom-file` **at the end** of `init.el`, and either commit an
+explicit `package-selected-packages` list or stop tracking `custom.el` in git.
+
+### B5 — `visible-bell` is enabled, not disabled (`init.el:45`) — **P1**
+
+`(setq visible-bell -1)` — `visible-bell` is a boolean and `-1` is non-nil.
+**[verified]** `visible-bell = t`. The intent (silence) is achieved only because
+`ring-bell-function` is `#'ignore` on the next line. Use `nil` for clarity.
+
+### B6 — `tab-always-indent` is set twice, contradictorily — **P1**
+
+`init.el:79` sets `t`; embark's `:init` at `init.el:289` sets `'complete`, and
+runs later. **[verified]** `tab-always-indent = complete`.
+
+Also, `completion-cycle-threshold` and `tab-always-indent` in embark's `:init`
+belong with **corfu**, not embark — embark does not read either variable. Move
+them and delete the duplicate.
+
+### B7 — `auto-save-dir` is an undeclared free variable (`init.el:39-40`) — **P1**
+
+**[verified]** byte-compiler:
+
+```
+init.el:39:7: Warning: assignment to free variable 'auto-save-dir'
+init.el:40:17: Warning: reference to free variable 'auto-save-dir'
+```
+
+Fix: `defvar` it, use a `let`, or inline `expand-file-name` in the transform.
+
+### B8 — Two eglot variables do not exist in Emacs 30.2 — **P1**
+
+`eglot-code-actions-indications` (`init.el:247`) and `eglot-put-doc-in-buffer`
+(`init.el:258`).
+
+**[verified]** Byte-compiler flags both as free variables, and neither appears in
+`/usr/share/emacs/30.2/lisp/progmodes/eglot.el.gz`. They are silent no-ops today
+— they belong to newer eglot releases.
+
+Fix: install eglot from GNU ELPA (drop `:ensure nil`) to actually get those
+features, or remove the two lines.
+
+### B9 — `provide` symbols do not match file names — **P1**
+
+- `init.el:546` — `(provide 'init.el)` should be `(provide 'init)` (or nothing).
+- `functions.el:74` — `(provide 'functions.el)` should be `(provide 'functions)`.
+- `vars.el` — provides nothing. **[verified]** `(featurep 'vars)` = `nil`.
+
+Once fixed, replace `(load "functions.el" nil t)` with `(require 'functions)` —
+idempotent, byte-compilable, and `M-x find-library` works.
+
+---
+
+## 2. Redundancies, dead code, inconsistencies
+
+**Duplicated settings**
+- `custom-file` set twice — `init.el:14` and `init.el:48`.
+- `scroll-preserve-screen-position` set twice — lines 76 and 82.
+- `scroll-conservatively` — `20` at line 77, then `1000` at line 83.
+- vertico — `:hook (after-init . vertico-mode)` **and** `:init (vertico-mode)`
+  (lines 137-139). Keep `:init`.
+- corfu `corfu-preselect` — `'prompt` at line 338, `:first` at line 344.
+- corfu `corfu-popupinfo-mode t` in `:custom` (line 335) is redundant with
+  `(corfu-popupinfo-mode 1)` in `:init` (line 356). It happens to work (it's a
+  global minor mode, so the mode variable is a defcustom), but it reads as a
+  settings variable and is not idiomatic.
+
+**Split configuration for the same package**
+- haskell — `:hook` in `use-package` (388) plus a separate `add-hook` lambda
+  (398-401). Merge into one named function.
+- go — `use-package go-mode` (409) plus a separate `add-hook` lambda (413-415).
+- projectile — `use-package` block (198) plus a detached `with-eval-after-load`
+  (211-213). Use `:config`.
+- eglot — `use-package` block plus **two** separate `with-eval-after-load` forms
+  plus a bare `setq` (lines 234-272).
+
+**Dead / superseded code**
+- `init.el:437-448` — an entire commented-out `markdown-mode` block sitting
+  directly above the live one. Delete it; git has the history.
+- `init.el:428-433` — commented-out `display-buffer-alist` for `*haskell*`.
+- `init.el:319-325` — commented-out `flymake-popon`.
+- `rust-mode` **and** `rustic` are both configured with format-on-save
+  (405-423). rustic supersedes rust-mode (and depends on it). Keep rustic's
+  settings only.
+- `haskell-mode :mode ("\\.hs\\'" . haskell-mode)` — already autoloaded.
+
+**Icon families**
+`all-the-icons` + `all-the-icons-dired` are configured, while `nerd-icons`,
+`nerd-icons-dired` and `nerd-icons-corfu` are **installed but never used**.
+doom-modeline 4.x defaults to nerd-icons. Pick one family — nerd-icons is the
+maintained one and works in the terminal.
+
+**Orphaned packages** (installed, referenced nowhere in the config):
+`apheleia`, `cape`, `nerd-icons-corfu`, `nerd-icons-dired`, `modus-themes`,
+`alabaster-themes`, `xterm-color`.
+(`nerd-icons`, `popon`, `svg-lib`, `shrink-path`, `elisp-refs`, `autothemer`,
+`compat`, `dash`, `s`, `f`, `spinner` are legitimate dependencies.)
+`apheleia` and `cape` are worth *adopting* rather than removing — see §4.
+
+**Naming / style**
+- `my-eglot-clean-haskell-markdown` (`init.el:261`) breaks the `dk/` convention.
+  It also advises `eglot--format-markup` for *all* languages and does a
+  `string-match-p` on every doc string; consider gating it on
+  `(derived-mode-p 'haskell-mode)`.
+- `init.el:535-538` — anonymous lambda on `enable-theme-functions`. It can never
+  be removed or redefined without restarting; it also `message`s on every theme
+  change. Name it `dk/on-theme-enabled`.
+- `keymap.el:11` — `(global-set-key (kbd "S-<return>") (kbd "C-e C-m"))` binds a
+  keyboard macro. Use a named command (`dk/open-line-below`) so `C-h k` is
+  informative and it survives a `C-e`/`C-m` rebinding.
+- `keymap.el:18` — lambda calling `kill-buffer`; `kill-current-buffer` already
+  exists.
+- `keymap.el` uses `global-set-key`; Emacs 29+ prefers `keymap-global-set` with
+  string key descriptions, which validates the key at call time.
+- `functions.el:63-72` — `dk/markdown-prose` and `dk/org-prose` are byte-for-byte
+  identical. Make one `dk/prose-setup`, or a small `dk/prose-mode` minor mode.
+- `functions.el:13` — `add-hook` sits next to the `defun`. Keeping definitions in
+  a lib file and *activations* in the owning module makes the load order legible.
+- `init.el:44` — `(setq delete-by-moving-to-trash (not noninteractive))`; the
+  guard is meaningless in `init.el`. Just `t`.
+
+**Keybinding design notes** (not bugs — record the intent)
+- `C-s` → `consult-line` and `C-r` → `consult-history` together remove both
+  isearch entry points, yet `init.el:57-60` tunes four isearch variables that can
+  now only be reached via `M-s .` etc. Either keep isearch on a key or drop the
+  tuning. Also, `consult-history` is designed for minibuffer/comint keymaps —
+  globally it will error in an ordinary buffer.
+- `M-l` is globally `downcase-dwim` (`keymap.el:14`) and `corfu-show-location`
+  inside `corfu-map`. No actual conflict; noted for the record.
+
+---
+
+## 3. Refactoring proposal — structure
+
+Current: `init.el` 547 lines, monolithic, with sections separated by `;;;;` bars.
+`src/` holds 118 lines across three files, one of which (`vars.el`) is empty.
+`early-init.el` contains two list-helper functions and nothing else.
+
+### 3.1 Target layout
+
+```
+early-init.el            ; GC, frame suppression, package-quickstart, native-comp
+init.el                  ; ~40 lines: bootstrap + module list
+src/dk-lib.el            ; path helpers (moved out of early-init.el)
+src/dk-core.el           ; backups, autosave, history, sane defaults
+src/dk-ui.el             ; fonts, modeline, line numbers, hl-line, scrolling
+src/dk-theme.el          ; theme load + dk/on-theme-enabled
+src/dk-keys.el           ; global keymap (was keymap.el)
+src/dk-funcs.el          ; shared helpers (was functions.el)
+src/dk-completion.el     ; vertico/orderless/marginalia/corfu/cape/embark/consult
+src/dk-editing.el        ; expand-region, electric-pair, delete-selection, ws
+src/dk-project.el        ; projectile, consult-projectile, dired, magit
+src/dk-lsp.el            ; eglot, flymake, eldoc, treesit
+src/dk-lang-c.el
+src/dk-lang-rust.el
+src/dk-lang-go.el
+src/dk-lang-haskell.el
+src/dk-lang-elisp.el
+src/dk-org.el
+src/dk-markdown.el
+```
+
+Prefix every file `dk-` so `M-x find-library dk-<TAB>` enumerates your own config
+and nothing else. Each file ends with `(provide 'dk-<name>)` matching the
+filename.
+
+### 3.2 Loader with error isolation
+
+Today a single error mid-`init.el` leaves everything below it unconfigured, with
+no clear indication of where it stopped. Use:
+
+```elisp
+(defconst dk/modules
+  '(dk-lib dk-core dk-ui dk-theme dk-funcs dk-keys
+    dk-completion dk-editing dk-project dk-lsp
+    dk-lang-c dk-lang-rust dk-lang-go dk-lang-haskell dk-lang-elisp
+    dk-org dk-markdown)
+  "Config modules, loaded in order.")
+
+(defvar dk/module-errors nil)
+
+(dolist (m dk/modules)
+  (condition-case err
+      (require m)
+    (error
+     (push (cons m err) dk/module-errors)
+     (message "[config] %s failed: %s" m (error-message-string err)))))
+```
+
+One broken module then costs you that module, not the whole session, and
+`dk/module-errors` tells you exactly what to look at.
+
+### 3.3 Simplify the path helpers
+
+`early-init.el` currently defines `dk/add-to-confdir` and `dk/add-paths-to-list`
+— 10 lines to do what a built-in already does, and `early-init.el` is the wrong
+home for them (it exists for things that must run *before* the first frame).
+`locate-user-emacs-file` is already used at `init.el:14`:
+
+```elisp
+(add-to-list 'load-path (locate-user-emacs-file "src"))
+(add-to-list 'custom-theme-load-path (locate-user-emacs-file "themes"))
+```
+
+If you keep the helpers for other uses, move them to `src/dk-lib.el`.
+
+### 3.4 What `early-init.el` should actually contain
+
+`init.el:65-69` disables the scroll bar, tool bar and menu bar **after** the
+frame is created — that is a visible flicker plus a wasted frame resize on every
+start. Suppress them before the frame exists:
+
+```elisp
+;;; early-init.el -*- lexical-binding: t; -*-
+
+;; Defer GC through startup, restore a sane threshold afterwards.
+(setq gc-cons-threshold most-positive-fixnum
+      gc-cons-percentage 0.6)
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            (setq gc-cons-threshold (* 64 1024 1024)
+                  gc-cons-percentage 0.1)))
+
+(setq load-prefer-newer t)              ; never load a stale .elc
+(setq site-run-file nil)
+(setq frame-inhibit-implied-resize t)   ; no resize per font/UI change
+(setq inhibit-startup-message t
+      inhibit-startup-echo-area-message user-login-name)
+(setq native-comp-async-report-warnings-errors 'silent)
+(setq package-quickstart t)             ; big win with ~60 packages
+
+;; No flicker: never create these, rather than creating and removing them.
+(push '(menu-bar-lines . 0)   default-frame-alist)
+(push '(tool-bar-lines . 0)   default-frame-alist)
+(push '(vertical-scroll-bars) default-frame-alist)
+```
+
+Then delete `scroll-bar-mode`/`tool-bar-mode`/`menu-bar-mode` and the
+`gc-cons-threshold` line from `init.el`.
+
+Note the current permanent `(setq gc-cons-threshold (* 50 1000 1000))`
+(`init.el:54`) is a defensible choice, but it means every GC scans up to 50 MB of
+garbage at once — occasional multi-hundred-ms pauses. The
+`most-positive-fixnum`-then-restore pattern above gets the startup benefit
+without the steady-state cost. `gcmh` automates the same idea if you prefer.
+
+---
+
+## 4. What to add (best practices)
+
+### 4.1 The one big gap: version control
+
+**`magit` is not installed at all.** For a config that supports Rust, Go,
+Haskell, C and Markdown, this is the single largest omission. Add:
+
+```elisp
+(use-package magit
+  :bind (("C-x g" . magit-status)
+         ("C-c g" . magit-file-dispatch))
+  :custom (magit-diff-refine-hunk 'all))
+
+(use-package diff-hl                       ; fringe git indicators
+  :hook ((prog-mode . diff-hl-mode)
+         (dired-mode . diff-hl-dired-mode)
+         (magit-post-refresh . diff-hl-magit-post-refresh)))
+```
+
+### 4.2 Tree-sitter is installed but never wired up — **P1**
+
+`tree-sitter/` contains 9 compiled grammars:
+
+```
+bash  c  cmake  cpp  json  python  rust  toml  yaml
+```
+
+but nothing in the config sets `major-mode-remap-alist`, so `c-ts-mode`,
+`c++-ts-mode` and `rust-ts-mode` **never activate**. Consequences:
+
+- The eglot hooks on `c-ts-mode` / `c++-ts-mode` (`init.el:237-239`) are
+  unreachable — only the `c-mode` / `c++-mode` hooks fire.
+- The grammars are dead weight.
+
+Add:
+
+```elisp
+(setq treesit-font-lock-level 4)
+(dolist (m '((c-mode      . c-ts-mode)
+             (c++-mode    . c++-ts-mode)
+             (rust-mode   . rust-ts-mode)
+             (json-mode   . json-ts-mode)
+             (python-mode . python-ts-mode)
+             (sh-mode     . bash-ts-mode)
+             (yaml-mode   . yaml-ts-mode)
+             (toml-mode   . toml-ts-mode)))
+  (add-to-list 'major-mode-remap-alist m))
+```
+
+Or use `treesit-auto`, which also handles grammar installation. Note: remapping
+`rust-mode` → `rust-ts-mode` interacts with rustic — decide which owns `.rs` and
+configure only that one. Also consider adding `go` and `gomod` grammars.
+
+### 4.3 LSP throughput — **P1**
+
+`read-process-output-max` is **not set** anywhere. The default is 4096 bytes,
+which throttles eglot noticeably on large `rust-analyzer` / HLS responses:
+
+```elisp
+(setq read-process-output-max (* 1024 1024))
+(setq process-adaptive-read-buffering nil)
+```
+
+Also worth having, given the existing eglot setup:
+
+```elisp
+(setq eglot-autoshutdown t
+      eglot-sync-connect nil          ; don't block on server startup
+      eglot-confirm-server-edits nil)
+```
+
+### 4.4 Adopt the two packages already installed but unused
+
+**`apheleia`** — async format-on-save. It would replace **four** different
+mechanisms currently in play: `rust-format-on-save` (405), `rustic-format-on-save`
+(423), `gofmt-before-save` (413-415), and `dk/clang-fos`'s `before-save-hook`
+(functions.el:58-60). Apheleia formats in a subprocess and applies an RCS patch,
+so it preserves point/markers and does not block the UI or race with LSP edits:
+
+```elisp
+(use-package apheleia
+  :init (apheleia-global-mode +1))
+```
+
+**`cape`** — corfu currently has nothing to complete outside LSP buffers:
+
+```elisp
+(use-package cape
+  :init
+  (add-hook 'completion-at-point-functions #'cape-file)
+  (add-hook 'completion-at-point-functions #'cape-dabbrev)
+  :custom (cape-dabbrev-min-length 3))
+```
+
+### 4.5 File hygiene: `no-littering`
+
+The config root currently holds runtime state: `history`, `places`, `recentf`,
+`projectile-bookmarks.eld`, `projectile-frecency.eld`, `autosave/`,
+`auto-save-list/`, `.cache/`, `eln-cache/`, plus stray `#!home!...#` autosave
+files. `.gitignore` has 20 lines mostly devoted to enumerating them.
+
+```elisp
+(use-package no-littering
+  :init
+  (require 'no-littering)
+  (no-littering-theme-backups))
+```
+
+Everything then lands in `var/` and `etc/`, and `.gitignore` collapses to a
+couple of lines. Load it **early**, before anything that computes a state path
+(recentf, savehist, save-place, projectile).
+
+### 4.6 Built-in modes worth enabling (zero cost, Emacs 30)
+
+None of these are currently set:
+
+```elisp
+(setq use-short-answers t)              ; replaces the fset at init.el:36
+(global-auto-revert-mode 1)             ; essential with external formatters/git
+(setq global-auto-revert-non-file-buffers t)
+(repeat-mode 1)                         ; C-x o o o, C-x { { {, ...
+(winner-mode 1)                         ; C-c <left> undo window layout
+(global-so-long-mode 1)                 ; no freeze on minified/one-line files
+(context-menu-mode 1)                   ; you already enable xterm-mouse-mode
+(setq bookmark-save-flag 1)
+(setq history-delete-duplicates t)
+(setq savehist-additional-variables
+      '(kill-ring search-ring regexp-search-ring))
+(setq-default indent-tabs-mode nil)
+(setq require-final-newline t)
+(setq sentence-end-double-space nil)
+(setq completion-ignore-case t
+      read-buffer-completion-ignore-case t
+      read-file-name-completion-ignore-case t)
+```
+
+`use-short-answers` is the Emacs 28+ replacement for
+`(fset 'yes-or-no-p 'y-or-n-p)` at `init.el:36` — the `fset` also breaks packages
+that legitimately need the long form for destructive prompts.
+
+### 4.7 Other packages that fit the existing stack
+
+- **`vundo`** + **`undo-fu-session`** — you tuned `undo-limit`/`undo-strong-limit`/
+  `undo-outer-limit` (51-53) but have no visual undo tree and no undo across
+  restarts. `vundo` is tiny and uses the native undo system.
+- **`wgrep`** — edit `consult-grep` / `embark-export` results in place and write
+  them back. The natural completion of the consult+embark stack you already have.
+- **`envrc`** (or `direnv`) — per-project toolchains. Right now
+  `haskell-language-server-wrapper` and `rust-analyzer` resolve against the
+  global `PATH`; with GHC/rustup version pinning per project that breaks.
+- **`consult-eglot`** — workspace symbol search via consult.
+- **`consult-dir`** — fast directory jumping in file prompts.
+- **`ws-butler`** — trims trailing whitespace only on lines you touched, so diffs
+  stay clean without whole-file churn.
+- **`eldoc-box`** — childframe hover docs; a better answer to the problem
+  `eglot-put-doc-in-buffer` (B8) was reaching for.
+- **`exec-path-from-shell`** — only if you ever launch Emacs from a desktop
+  launcher rather than a shell.
+
+### 4.8 Window management
+
+`dk/helpful-open` (`functions.el:27-38`) hand-rolls window splitting. The modern
+mechanism is `display-buffer-alist`, which is declarative, composable, and would
+also cover the commented-out `*haskell*` side-window block at `init.el:428-433`
+and flymake/compilation buffers:
+
+```elisp
+(add-to-list 'display-buffer-alist
+             '("\\*helpful"
+               (display-buffer-reuse-window display-buffer-in-side-window)
+               (side . right) (window-width . 0.4)))
+```
+
+Also, `dk/helpful-close` kills the buffer after `delete-window`; `quit-window`
+with a non-nil KILL argument does both and handles the one-window case for you.
+
+### 4.9 Startup performance
+
+- `package-quickstart t` in `early-init.el` (§3.4) — the biggest single win at
+  ~60 packages; it collapses all autoload files into one preloaded file.
+- `(setq use-package-always-defer t)` plus explicit `:demand` where needed.
+  Currently `all-the-icons`, `expand-region`, `doom-themes`, `ef-themes`,
+  `gruvbox-theme` and `spacemacs-theme` are all loaded eagerly at every startup
+  for no benefit — themes in particular only need to be on `load-path`.
+- Byte-compile the config:
+  `emacs -Q --batch -L src -f batch-byte-compile src/*.el init.el`
+  (with `load-prefer-newer t` set in `early-init.el` so stale `.elc` never wins).
+- While tuning: `(setq use-package-compute-statistics t)`, then
+  `M-x use-package-report`.
+
+---
+
+## 5. Repository hygiene
+
+**README.md is one line** (`# Vanilla Emacs config`). Worth documenting:
+- the module layout and load order
+- a keybinding table (the non-obvious ones: `M-x` → `dk/M-x-dwim`, `C-=`,
+  `S-<return>`, `C-c k`, `C-c r`, `C-c t`, `S-<backspace>` in the minibuffer)
+- required external tools: `haskell-language-server-wrapper`, `rust-analyzer`,
+  `clangd`, `gopls`, `pandoc`, `clang-format`, and the **Aporetic Sans Mono**
+  font
+
+**No lint or smoke test.** A three-line `Makefile` would catch B1/B7/B8-class
+problems before they reach a running Emacs:
+
+```make
+compile: ; emacs -Q --batch -L src -f batch-byte-compile src/*.el init.el
+smoke:   ; emacs -Q --batch -l early-init.el -l init.el --eval '(kill-emacs 0)'
+clean:   ; rm -f src/*.elc *.elc
+```
+
+**Font is hard-coded** (`init.el:87-88`). On a machine without Aporetic Sans Mono
+you get a silent fallback:
+
+```elisp
+(when (find-font (font-spec :name "Aporetic Sans Mono"))
+  (set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 115))
+```
+
+**32 vendored themes are tracked in git**, exactly one of which
+(`gruber-darker`) is loaded — while `doom-themes`, `ef-themes`, `gruvbox-theme`,
+`spacemacs-theme` and `modus-themes` are *also* installed from ELPA. Consider
+pruning `themes/` to the handful you actually cycle through with `C-c t`.
+
+**`.gitignore` gaps**: `*.elc`, `autosave/`, `projectile.cache` (the path set at
+`init.el:202`), and `var/` + `etc/` if you adopt no-littering.
+
+---
+
+## 6. Suggested order of work
+
+1. **P0 correctness** — B1 (eglot servers), B2 (`C-x C-p`), B3 (consult-projectile
+   keys), B4 (`package-selected-packages`). Small, isolated, immediately useful.
+2. **P1 cleanup** — B5-B9, remove the duplicated settings in §2, delete the
+   commented-out blocks. Still no restructuring; the diff stays reviewable.
+3. **P2 structure** — move UI suppression into `early-init.el` (§3.4), then split
+   `init.el` into `src/dk-*.el` (§3.1) with the isolating loader (§3.2). Do this
+   as its own commit with no behaviour changes, so a bisect can separate
+   "moved code" from "changed code".
+4. **P1/P3 capability** — tree-sitter wiring (§4.2), `read-process-output-max`
+   (§4.3), then magit, no-littering, apheleia, cape, and the built-in modes.
+5. **P4 polish** — README, Makefile, theme pruning, `.gitignore`.
+
+Steps 1 and 2 are worth doing before 3: fixing bugs inside a file you are about
+to split makes the split diff harder to read.

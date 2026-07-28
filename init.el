@@ -226,6 +226,42 @@
   (consult-line-numbers-widen t)          ;; Show line numbers in search
   )
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Coding environment
+(use-package treesit
+  :ensure nil
+  :custom
+  (treesit-font-lock-level 4)		; maximum highlighting detail
+  :config
+  (setq treesit-language-source-alist
+	'((bash "https://github.com/tree-sitter/tree-sitter-bash")
+	  (c "https://github.com/tree-sitter/tree-sitter-c")
+	  (cpp "https://github.com/tree-sitter/tree-sitter-cpp")
+	  (cmake "https://github.com/uyha/tree-sitter-cmake")
+	  (json "https://github.com/tree-sitter/tree-sitter-json")
+	  (python "https://github.com/tree-sitter/tree-sitter-python")
+	  (rust "https://github.com/tree-sitter/tree-sitter-rust")
+	  (toml "https://github.com/tree-sitter/tree-sitter-toml")
+	  (yaml "https://github.com/ikatyang/tree-sitter-yaml")))
+  ;; Compile and install any missing grammar (one-time, needs git + a C compiler)
+  (dolist (lang (mapcar #'car treesit-language-source-alist))
+    (unless (treesit-language-available-p lang)
+      (treesit-install-language-grammar lang))))
+
+;; Prefer tree-sitter major modes over the classic ones
+(setq major-mode-remap-alist
+      '((c-mode . c-ts-mode)
+	(c++-mode . c++-ts-mode)
+	(c-or-c++-mode . c-or-c++-ts-mode)
+	(python-mode . python-ts-mode)
+	(sh-mode . bash-ts-mode)
+	(js-json-mode . json-ts-mode)
+	(conf-toml-mode . toml-ts-mode)))
+
+;; Tree-sitter modes without a classic counterpart to remap
+(add-to-list 'auto-mode-alist '("\\(?:CMakeLists\\.txt\\|\\.cmake\\)\\'" . cmake-ts-mode))
+(add-to-list 'auto-mode-alist '("\\.ya?ml\\'" . yaml-ts-mode))
+
 (use-package eglot
   :ensure nil
   :hook ((haskell-mode . eglot-ensure)
@@ -233,13 +269,18 @@
 	 (c-mode . eglot-ensure)
 	 (c++-ts-mode . eglot-ensure)
 	 (c++-mode . eglot-ensure)
-	 (go-mode . eglot-ensure))
+	 (go-mode . eglot-ensure)
+	 (rust-mode . eglot-ensure)
+	 (rust-ts-mode . eglot-ensure)
+	 (python-base-mode . eglot-ensure))
   ;;(rust-mode . eglot-ensure))      ;; Rustic is enabled
   :config
   (add-hook 'prog-mode-hook 'eldoc-mode)
   (setq eglot-events-buffer-config '(:size 0))
   (setq eglot-extend-to-xref t)             ; start eglot for cross-referenced files
-  (setq eglot-code-actions-indications '(eldoc-hint margin)))
+  (setq eglot-code-actions-indications '(eldoc-hint margin))
+  (setq-default eglot-workspace-configuration
+		'(:haskell (:formattingProvider "fourmolu"))))
 
 ;; One `add-to-list' per server: the value is an alist of (MODES . CONTACT), so a
 ;; single call must not wrap them in an extra list -- and it must be quoted once,
@@ -247,16 +288,22 @@
 ;; win over eglot's built-in defaults.
 (with-eval-after-load 'eglot
   (add-to-list 'eglot-server-programs
-               '((haskell-mode haskell-ts-mode)
-                 . ("haskell-language-server-wrapper" "--lsp")))
+	       '((haskell-mode haskell-ts-mode)
+		 . ("haskell-language-server-wrapper" "--lsp")))
   (add-to-list 'eglot-server-programs
-               '((rust-ts-mode rust-mode)
-                 . ("rust-analyzer"
-                    :initializationOptions (:check (:command "clippy")))))
+	       '((rust-ts-mode rust-mode)
+		 . ("rust-analyzer" :initializationOptions
+		    (:check (:command "clippy")))))
+  ;; Separate entries: the std fallback flag differs between C and C++
+  ;; (used only when there is no compile_commands.json / .clangd)
   (add-to-list 'eglot-server-programs
-               '((c-ts-mode c-mode c++-ts-mode c++-mode)
-                 . ("clangd" "--clang-tidy"
-                    :initializationOptions (:fallbackFlags ["-std=c23"])))))
+	       '((c-ts-mode c-mode)
+		 . ("clangd" "--clang-tidy"
+		    :initializationOptions (:fallbackFlags ["-std=c23"]))))
+  (add-to-list 'eglot-server-programs
+	       '((c++-ts-mode c++-mode)
+		 . ("clangd" "--clang-tidy"
+		    :initializationOptions (:fallbackFlags ["-std=c++23"])))))
 
 (setq eglot-put-doc-in-buffer t) ; Keeps the heavy markdown out of the tiny echo area
 

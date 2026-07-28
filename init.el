@@ -39,7 +39,7 @@
 (setq auto-save-dir (expand-file-name "autosave" user-emacs-directory))
 (make-directory auto-save-dir t)
 (setq auto-save-file-name-transforms
-	      `((".*" ,auto-save-dir t)))
+      `((".*" ,auto-save-dir t)))
 (setq vc-follow-symlinks t)		;; Follow symlinks without confirmation
 (setq delete-by-moving-to-trash (not noninteractive))
 (setq visible-bell nil)
@@ -51,8 +51,8 @@
 (repeat-mode 1)
 (winner-mode 1)
 (setq undo-limit (* 13 160000)
-	      undo-strong-limit (* 13 240000)
-	      undo-outer-limit (* 13 24000000))
+      undo-strong-limit (* 13 240000)
+      undo-outer-limit (* 13 24000000))
 (setq initial-scratch-message ";; He who walks alone  ... Always walks uphill but ... Beneath his feet are the ... Broken bones of flawed men ...\n\n")
 ;; Search settings
 (setq isearch-allow-scroll t)
@@ -96,7 +96,7 @@
 (use-package expand-region)
 
 (use-package helpful
-   :custom
+  :custom
   (helpful-switch-buffer-function #'dk/helpful-open)
   :bind
   (("C-h f" . helpful-callable)
@@ -142,14 +142,14 @@
   :ensure nil
   :after vertico
   :bind (:map vertico-map
-         ("RET"   . vertico-directory-enter)
-         ;; Plain commands, not the vertico-directory-* variants: those delete a
-         ;; whole path component when point is right after "/", which makes
-         ;; Backspace and Shift-Backspace identical at a directory boundary.
-         ("DEL"   . delete-backward-char)
-         ("S-<backspace>" . backward-kill-word)
-         ;; Up one directory in file prompts; plain word kill everywhere else
-         ("M-DEL" . vertico-directory-delete-word)))
+              ("RET"   . vertico-directory-enter)
+              ;; Plain commands, not the vertico-directory-* variants: those delete a
+              ;; whole path component when point is right after "/", which makes
+              ;; Backspace and Shift-Backspace identical at a directory boundary.
+              ("DEL"   . delete-backward-char)
+              ("S-<backspace>" . backward-kill-word)
+              ;; Up one directory in file prompts; plain word kill everywhere else
+              ("M-DEL" . vertico-directory-delete-word)))
 
 (use-package vertico-multiform
   :ensure nil
@@ -234,26 +234,45 @@
 	 (c++-ts-mode . eglot-ensure)
 	 (c++-mode . eglot-ensure)
 	 (go-mode . eglot-ensure))
-	 ;;(rust-mode . eglot-ensure))      ;; Rustic is enabled
+  ;;(rust-mode . eglot-ensure))      ;; Rustic is enabled
   :config
   (add-hook 'prog-mode-hook 'eldoc-mode)
   (setq eglot-events-buffer-config '(:size 0))
   (setq eglot-extend-to-xref t)             ; start eglot for cross-referenced files
   (setq eglot-code-actions-indications '(eldoc-hint margin)))
 
+;; One `add-to-list' per server: the value is an alist of (MODES . CONTACT), so a
+;; single call must not wrap them in an extra list -- and it must be quoted once,
+;; not twice.  `add-to-list' prepends and eglot takes the first match, so these
+;; win over eglot's built-in defaults.
 (with-eval-after-load 'eglot
   (add-to-list 'eglot-server-programs
-               ''(((haskell-mode haskell-ts-mode) . ("haskell-language-server-wrapper" "--lsp"))
-		 ((rust-ts-mode rust-mode) . ("rust-analyzer" :initializationOptions
-					      (:check (:command "clippy"))))
-		 ((c-ts-mode c-mode c++-ts-mode c++-mode) .
-                  ("clangd" "--clang-tidy"
-                   :initializationOptions (:fallbackFlags ["-std=c23"]))))))
+               '((haskell-mode haskell-ts-mode)
+                 . ("haskell-language-server-wrapper" "--lsp")))
+  (add-to-list 'eglot-server-programs
+               '((rust-ts-mode rust-mode)
+                 . ("rust-analyzer"
+                    :initializationOptions (:check (:command "clippy")))))
+  (add-to-list 'eglot-server-programs
+               '((c-ts-mode c-mode c++-ts-mode c++-mode)
+                 . ("clangd" "--clang-tidy"
+                    :initializationOptions (:fallbackFlags ["-std=c23"])))))
 
 (setq eglot-put-doc-in-buffer t) ; Keeps the heavy markdown out of the tiny echo area
 
 (with-eval-after-load 'eglot
-  (advice-add 'eglot--format-markup :filter-args #'dk/eglot-clean-haskell-markdown))
+  (defun my-eglot-clean-haskell-markdown (args)
+    "Safely strip Haskell code fences from Eglot markup data."
+    (let* ((markup (car args))
+           ;; If markup is a plist (list), look for the :value key, otherwise use the string
+           (str (if (listp markup) (plist-get markup :value) markup)))
+      (when (and (stringp str) (string-match-p "```haskell" str))
+        (let ((clean-str (replace-regexp-in-string "```haskell\n\\|```" "" str)))
+          (if (listp markup)
+              (plist-put markup :value clean-str)
+            (setcar args clean-str)))))
+    args)
+  (advice-add 'eglot--format-markup :filter-args #'my-eglot-clean-haskell-markdown))
 
 (use-package xref
   :ensure nil
@@ -299,15 +318,6 @@
   (define-fringe-bitmap 'flymake-note-indicator
     [#b00100000] nil nil '(center repeated)))
 
-;; Show flymake diagnostics at point (echo area / childframe)
-;; (use-package flymake-popon
-;;   :hook (flymake-mode . flymake-popon-mode)
-;;   :custom
-;;   (flymake-popon-method 'popon)  ;; or 'childframe for GUI
-;;   :config
-;;   (when (display-graphic-p)
-;;     (setq flymake-popon-method 'childframe)))
-
 (use-package corfu
   :ensure t
   ;; Optional: enable corfu-cycle for TAB cycling
@@ -318,7 +328,6 @@
   (corfu-auto-prefix 2)             ;; minimum prefix length for auto
   (corfu-popupinfo-delay 0.5)       ;; delay for doc popup
   (corfu-preview-current t)         ;; preview current candidate
-  ;;(corfu-preselect 'prompt)         ;; preselect prompt
   (corfu-on-exact-match nil)        ;; don't auto-insert on exact match
   (corfu-quit-at-boundary 'separator) ;; quit at boundary
   (corfu-quit-no-match t)           ;; quit if no match
@@ -389,7 +398,7 @@
 (use-package haskell-mode
   :mode ("\\.hs\\'" . haskell-mode)
   :hook ((haskell-mode . haskell-indentation-mode))
-	;; (haskell-mode . haskell-doc-mode))
+  ;; (haskell-mode . haskell-doc-mode))
   :bind
   (:map haskell-mode-map
 	("C-c C-l" . haskell-process-load-file)
@@ -402,8 +411,8 @@
           (lambda ()
             ;; Disable the old school doc mode so it doesn't fight with Eglot
             (haskell-doc-mode -1)))
-            ;; Start eglot automatically (optional, if you haven't already)
-            ;; (eglot-ensure)))
+;; Start eglot automatically (optional, if you haven't already)
+;; (eglot-ensure)))
 
 (use-package rust-mode)
 
@@ -447,10 +456,10 @@
   (markdown-asymmetric-header t)
   (markdown-list-item-bullets '("•" "◦" "▪" "▫"))
   :bind (:map markdown-mode-map
-         ("C-c C-e"  . markdown-do)
-         ("C-c C-v"  . gfm-view-mode)  ;; read-only fully-rendered view
-         ("M-<up>"   . markdown-move-up)
-         ("M-<down>" . markdown-move-down)))
+              ("C-c C-e"  . markdown-do)
+              ("C-c C-v"  . gfm-view-mode)  ;; read-only fully-rendered view
+              ("M-<up>"   . markdown-move-up)
+              ("M-<down>" . markdown-move-down)))
 
 (use-package valign
   :ensure t

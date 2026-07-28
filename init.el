@@ -33,7 +33,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Common settings
-(fset 'yes-or-no-p 'y-or-n-p)
+(setq use-short-answers t)
 (setq make-backup-files nil)         ;; do not make backup files
 (setq create-lockfiles nil)
 (setq auto-save-dir (expand-file-name "autosave" user-emacs-directory))
@@ -47,10 +47,12 @@
 (delete-selection-mode t)
 (savehist-mode 1)
 (save-place-mode 1)
+(setq global-auto-revert-mode 1)
+(repeat-mode 1)
+(winner-mode 1)
 (setq undo-limit (* 13 160000)
 	      undo-strong-limit (* 13 240000)
 	      undo-outer-limit (* 13 24000000))
-(setq gc-cons-threshold (* 50 1000 1000))
 (setq initial-scratch-message ";; He who walks alone  ... Always walks uphill but ... Beneath his feet are the ... Broken bones of flawed men ...\n\n")
 ;; Search settings
 (setq isearch-allow-scroll t)
@@ -61,11 +63,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; UI Settings
 (setq inhibit-startup-message t)
-(scroll-bar-mode -1)
-(tool-bar-mode -1)
 (tooltip-mode -1)
 (set-fringe-mode 10)
-(menu-bar-mode -1)
 (blink-cursor-mode -1)
 (column-number-mode)
 (xterm-mouse-mode 1)
@@ -347,7 +346,13 @@
   (unless (display-graphic-p)
     (corfu-terminal-mode 1)))
 
-;; Icons for Corfu candidates
+(use-package cape
+  :init
+  (add-hook 'completion-at-point-functions #'cape-file)
+  (add-hook 'completion-at-point-functions #'cape-dabbrev)
+  :custom (cape-dabbrev-min-length 3))
+
+;; Icons forCorfu candidates
 (use-package kind-icon
   :ensure t
   :after corfu
@@ -363,6 +368,20 @@
    ("C-c p d" . consult-projectile-find-dir))
   :config
   (setq consult-projectile-function #'consult-projectile))
+
+(use-package apheleia
+  :init (apheleia-global-mode +1))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Version control
+(use-package magit
+  :bind (("C-x g" . magit-status)
+         ("C-c g" . magit-file-dispatch))
+  :custom (magit-diff-refine-hunk 'all))
+
+(use-package diff-hl                       ; fringe git indicators
+  :hook ((prog-mode . diff-hl-mode)
+         (dired-mode . diff-hl-dired-mode)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Langauge specific settings

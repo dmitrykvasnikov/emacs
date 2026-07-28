@@ -5,6 +5,8 @@ tree-sitter/
 auto-save-list
 custom.el
 history
+package-quickstart.el
+package-quickstart.elc
 places
 places.eld
 projects

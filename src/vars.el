@@ -2,4 +2,5 @@
 
 ;; My variablles
 
+(provide 'vars)
 ;;; vars.el ends here

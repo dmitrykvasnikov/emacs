@@ -45,7 +45,6 @@
 (setq visible-bell nil)
 (setq ring-bell-function #'ignore)
 (delete-selection-mode t)
-(setopt custom-file (locate-user-emacs-file "custom.el"))
 (savehist-mode 1)
 (save-place-mode 1)
 (setq undo-limit (* 13 160000)
@@ -74,12 +73,10 @@
 (electric-pair-mode 1)
 (global-hl-line-mode 1)
 (setq scroll-preserve-screen-position t)
-(setq scroll-conservatively 20)
 (setq word-wrap t)
 (setq tab-always-indent t)
 ;; Screen positioninig
 (setq recenter-positions '(middle top))
-(setq scroll-preserve-screen-position t)
 (setq scroll-conservatively 1000)
 (setq scroll-margin 3)
 (setq next-screen-context-lines 3)
@@ -135,7 +132,6 @@
   :init (recentf-mode))
 
 (use-package vertico
-  :hook (after-init . vertico-mode)
   :init (vertico-mode)
   :custom
   (vertico-count 15)
@@ -258,18 +254,7 @@
 (setq eglot-put-doc-in-buffer t) ; Keeps the heavy markdown out of the tiny echo area
 
 (with-eval-after-load 'eglot
-  (defun my-eglot-clean-haskell-markdown (args)
-    "Safely strip Haskell code fences from Eglot markup data."
-    (let* ((markup (car args))
-           ;; If markup is a plist (list), look for the :value key, otherwise use the string
-           (str (if (listp markup) (plist-get markup :value) markup)))
-      (when (and (stringp str) (string-match-p "```haskell" str))
-        (let ((clean-str (replace-regexp-in-string "```haskell\n\\|```" "" str)))
-          (if (listp markup)
-              (plist-put markup :value clean-str)
-            (setcar args clean-str)))))
-    args)
-  (advice-add 'eglot--format-markup :filter-args #'my-eglot-clean-haskell-markdown))
+  (advice-add 'eglot--format-markup :filter-args #'dk/eglot-clean-haskell-markdown))
 
 (use-package xref
   :ensure nil
@@ -332,10 +317,9 @@
   (corfu-auto t)                    ;; auto-popup completion
   (corfu-auto-delay 0.2)            ;; delay before auto popup
   (corfu-auto-prefix 2)             ;; minimum prefix length for auto
-  (corfu-popupinfo-mode t)          ;; shows documentation popup
   (corfu-popupinfo-delay 0.5)       ;; delay for doc popup
   (corfu-preview-current t)         ;; preview current candidate
-  (corfu-preselect 'prompt)         ;; preselect prompt
+  ;;(corfu-preselect 'prompt)         ;; preselect prompt
   (corfu-on-exact-match nil)        ;; don't auto-insert on exact match
   (corfu-quit-at-boundary 'separator) ;; quit at boundary
   (corfu-quit-no-match t)           ;; quit if no match
@@ -402,9 +386,7 @@
             ;; Start eglot automatically (optional, if you haven't already)
             ;; (eglot-ensure)))
 
-(use-package rust-mode
-  :config
-  (setq rust-format-on-save t))
+(use-package rust-mode)
 
 (use-package go-mode
   :ensure t
@@ -424,28 +406,6 @@
 
 (use-package clang-format
   :hook ((c-ts-mode c-mode c++-ts-mode c++-mode) . dk/clang-fos))
-
-;; (add-to-list 'display-buffer-alist
-;; 	     '("\\*haskell\\*"
-;; 	       (display-buffer-in-side-window)
-;; 	       (side . right)
-;; 	       (window-width . 0.3)
-;; 	       (window-height . fit-window-to-buffer)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Markdown mode
-;; (use-package markdown-mode
-;;   :ensure t
-;;   :mode ("README\\.md\\'" . gfm-mode)
-;;   :init (setq markdown-command "multimarkdown")
-;;   :custom
-;;   ;; Scale header fonts relative to text size
-;;   (markdown-header-scaling t)
-;;   :config
-;;   ;; Hide the raw markdown markup characters (*, #, etc.) for a WYSIWYG look
-;;   (add-hook 'markdown-mode-hook #'markdown-toggle-markup-hiding)
-;;   :bind (:map markdown-mode-map
-;;          ("C-c C-e" . markdown-do)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Markdown mode
@@ -543,5 +503,5 @@
 (use-package spacemacs-theme)
 (load-theme 'gruber-darker)
 
-(provide 'init.el)
+(provide 'init)
 ;;; init.el ends here

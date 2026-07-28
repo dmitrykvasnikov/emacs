@@ -59,6 +59,18 @@ If current window has full frame width, split right; otherwise split below."
   (when (locate-dominating-file default-directory ".clang-format")
     (add-hook 'before-save-hook #'clang-format-buffer nil t)))
 
+(defun dk/eglot-clean-haskell-markdown (args)
+    "Safely strip Haskell code fences from Eglot markup data."
+    (let* ((markup (car args))
+           ;; If markup is a plist (list), look for the :value key, otherwise use the string
+           (str (if (listp markup) (plist-get markup :value) markup)))
+      (when (and (stringp str) (string-match-p "```haskell" str))
+        (let ((clean-str (replace-regexp-in-string "```haskell\n\\|```" "" str)))
+          (if (listp markup)
+              (plist-put markup :value clean-str)
+            (setcar args clean-str)))))
+    args)
+
 ;; Markdown prose display
 (defun dk/markdown-prose ()
   "Prose-friendly display for Markdown buffers."
@@ -71,5 +83,5 @@ If current window has full frame width, split right; otherwise split below."
   (visual-line-mode 1)
   (setq-local line-spacing 0.15))
 
-(provide 'functions.el)
+(provide 'functions)
 ;;; functions.el ends here

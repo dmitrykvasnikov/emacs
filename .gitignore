@@ -3,6 +3,7 @@ elpa/
 transient/
 tree-sitter/
 auto-save-list
+custom.el
 history
 places
 places.eld

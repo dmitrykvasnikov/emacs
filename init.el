@@ -42,7 +42,7 @@
 	      `((".*" ,auto-save-dir t)))
 (setq vc-follow-symlinks t)		;; Follow symlinks without confirmation
 (setq delete-by-moving-to-trash (not noninteractive))
-(setq visible-bell -1)
+(setq visible-bell nil)
 (setq ring-bell-function #'ignore)
 (delete-selection-mode t)
 (setopt custom-file (locate-user-emacs-file "custom.el"))

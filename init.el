@@ -246,14 +246,22 @@
   (setq eglot-extend-to-xref t)             ; start eglot for cross-referenced files
   (setq eglot-code-actions-indications '(eldoc-hint margin)))
 
+;; One `add-to-list' per server: the value is an alist of (MODES . CONTACT), so a
+;; single call must not wrap them in an extra list -- and it must be quoted once,
+;; not twice.  `add-to-list' prepends and eglot takes the first match, so these
+;; win over eglot's built-in defaults.
 (with-eval-after-load 'eglot
   (add-to-list 'eglot-server-programs
-               ''(((haskell-mode haskell-ts-mode) . ("haskell-language-server-wrapper" "--lsp"))
-		 ((rust-ts-mode rust-mode) . ("rust-analyzer" :initializationOptions
-					      (:check (:command "clippy"))))
-		 ((c-ts-mode c-mode c++-ts-mode c++-mode) .
-                  ("clangd" "--clang-tidy"
-                   :initializationOptions (:fallbackFlags ["-std=c23"]))))))
+               '((haskell-mode haskell-ts-mode)
+                 . ("haskell-language-server-wrapper" "--lsp")))
+  (add-to-list 'eglot-server-programs
+               '((rust-ts-mode rust-mode)
+                 . ("rust-analyzer"
+                    :initializationOptions (:check (:command "clippy")))))
+  (add-to-list 'eglot-server-programs
+               '((c-ts-mode c-mode c++-ts-mode c++-mode)
+                 . ("clangd" "--clang-tidy"
+                    :initializationOptions (:fallbackFlags ["-std=c23"])))))
 
 (setq eglot-put-doc-in-buffer t) ; Keeps the heavy markdown out of the tiny echo area
 

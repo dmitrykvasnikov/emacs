@@ -53,10 +53,6 @@ If current window has full frame width, split right; otherwise split below."
       (switch-to-minibuffer)
     (call-interactively #'execute-extended-command)))
 
-(defun dk/clang-fos ()
-  (when (locate-dominating-file default-directory ".clang-format")
-    (add-hook 'before-save-hook #'clang-format-buffer nil t)))
-
 (defun dk/eglot-clean-haskell-markdown (args)
   "Safely strip Haskell code fences from Eglot markup data."
   (let* ((markup (car args))
@@ -75,6 +71,15 @@ If current window has full frame width, split right; otherwise split below."
   (visual-line-mode 1)
   (setq-local line-spacing dk/prose-line-spacing))
 
+(defun dk/consult-line-repeat ()
+  "Run `consult-line' seeded with the previous search string.
+The equivalent of isearch's `C-s C-s': `consult-line' is not incremental,
+so there is no match to advance from — this re-runs the last search
+instead.  Falls back to a plain `consult-line' when the history is empty
+or consult has not been loaded yet."
+  (interactive)
+  (consult-line (car (bound-and-true-p consult--line-history))))
+
 (defun dk/newline-below ()
   "Open a new line below point, regardless of column."
   (interactive)
@@ -87,8 +92,19 @@ If current window has full frame width, split right; otherwise split below."
   (dk/sync-orderless))
 
 (defun dk/haskell-setup ()
-  "Stop `haskell-doc-mode' from fighting Eldoc/Eglot."
-  (haskell-doc-mode -1))
+  "Stop `haskell-doc-mode' from fighting Eldoc/Eglot.
+Guarded: `haskell-ts-mode' buffers never enable it, and calling the
+autoloaded command there would pull in haskell-doc for nothing."
+  (when (bound-and-true-p haskell-doc-mode)
+    (haskell-doc-mode -1)))
+
+(defun dk/treesit-apply-remaps ()
+  "Remap classic major modes to tree-sitter ones where the grammar exists.
+Guarding on the grammar means a missing one degrades to the classic mode
+instead of a tree-sitter mode with no parser behind it."
+  (pcase-dolist (`(,classic ,ts ,lang) dk/treesit-remaps)
+    (when (treesit-language-available-p lang)
+      (add-to-list 'major-mode-remap-alist (cons classic ts)))))
 
 (defun dk/apheleia-inhibit-unconfigured-c ()
   "Inhibit apheleia in C/C++ buffers with no .clang-format in scope."
@@ -97,9 +113,12 @@ If current window has full frame width, split right; otherwise split below."
 
 (defun dk/treesit-install-missing ()
   "Compile and install any tree-sitter grammar that is missing.
-Needs git and a C compiler.  Run once per machine."
+Needs git and a C compiler.  Run once per machine, then restart Emacs.
+Iterates `dk/treesit-languages' directly rather than
+`treesit-language-source-alist', so a broken wiring of the latter cannot
+turn this into a silent no-op."
   (interactive)
-  (dolist (lang (mapcar #'car treesit-language-source-alist))
+  (dolist (lang (mapcar #'car dk/treesit-languages))
     (if (treesit-language-available-p lang)
         (message "tree-sitter grammar present: %s" lang)
       (message "Installing tree-sitter grammar: %s" lang)

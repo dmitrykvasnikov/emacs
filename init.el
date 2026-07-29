@@ -10,7 +10,7 @@
 (dk/add-paths-to-list 'custom-theme-load-path '("themes/") t)
 (require 'vars)
 (require 'functions)
-(require 'keymap)
+(require 'keys)   ;; NOT 'keymap — Emacs preloads a built-in feature by that name
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Package settings
@@ -27,16 +27,17 @@
   (package-install 'use-package))
 (require 'use-package)
 (setq use-package-always-ensure t)
+(setq package-selected-packages dk/packages)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Common settings
 (setq use-short-answers t)
 (setq make-backup-files nil)         ;; do not make backup files
 (setq create-lockfiles nil)
-(setq auto-save-dir dk/auto-save-dir)
-(make-directory auto-save-dir t)
+(make-directory dk/auto-save-dir t)
 (setq auto-save-file-name-transforms
-      `((".*" ,auto-save-dir t)))
+      `((".*" ,dk/auto-save-dir t)))
+(setq trusted-content dk/trusted-dirs)  ;; enables elisp-flymake-byte-compile
 (setq vc-follow-symlinks t)		;; Follow symlinks without confirmation
 (setq delete-by-moving-to-trash (not noninteractive))
 (setq visible-bell nil)
@@ -72,7 +73,11 @@
 (setq confirm-kill-emacs #'yes-or-no-p)
 (setq history-length 1000)
 (setq savehist-additional-variables
-      '(kill-ring register-alist search-ring regexp-search-ring corfu-history))
+      '(kill-ring register-alist search-ring regexp-search-ring corfu-history
+        ;; consult--line-history   ;; redundant — savehist already auto-tracks any
+        ;; variable used as `minibuffer-history-variable', which is what
+        ;; consult-line sets, so C-s history persists without listing it here.
+        ))
 (setq recentf-exclude
       (list (regexp-quote (expand-file-name "elpa/" user-emacs-directory))
             "/tmp/" "/ssh:" "\\.gz\\'" "/COMMIT_EDITMSG\\'"))
@@ -80,6 +85,9 @@
 (setq bookmark-save-flag 1)
 (setq switch-to-buffer-obey-display-actions t)
 (setq compilation-scroll-output 'first-error)
+(setq compilation-ask-about-save nil)   ;; save modified buffers without prompting
+(setq compilation-max-output-line-length nil)
+(setq next-error-message-highlight t)
 (setq describe-bindings-outline t)
 (pixel-scroll-precision-mode 1)
 (context-menu-mode 1)
@@ -115,8 +123,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Packages
-;; (use-package all-the-icons)
-
 (use-package nerd-icons)
 
 (use-package nerd-icons-dired
@@ -223,36 +229,6 @@
 (use-package diredfl
   :hook (dired-mode . diredfl-mode))
 
-;; (use-package all-the-icons-dired
-;;   :hook (dired-mode . all-the-icons-dired-mode))
-
-;; (use-package projectile
-;;   :init
-;;   (setq projectile-auto-discover t)
-;;   (setq projectile-track-known-projects-automatically t)  ; Auto-add projects
-;;   (setq projectile-cache-file (expand-file-name "projectile.cache" user-emacs-directory))
-;;   (projectile-mode +1)
-;;   ;; Basic settings
-;;   (setq projectile-completion-system 'default)
-;;   (setq projectile-indexing-method 'alien)       ; Faster on Unix (Linux/Mac)
-;;   :bind
-;;   (:map projectile-mode-map
-;; 	("C-c p" . projectile-command-map)))
-
-;; (with-eval-after-load 'projectile
-;;   (add-to-list 'projectile-globally-ignored-buffers "*projectile-files-errors*")
-;;   (add-to-list 'projectile-globally-ignored-buffers "EGLOT*"))
-
-;; (use-package consult-projectile
-;;   :after projectile
-;;   :bind
-;;   (("C-c p f" . consult-projectile-find-file)
-;;    ("C-c p p" . consult-projectile-switch-project)
-;;    ("C-c p b" . consult-projectile-switch-to-buffer)
-;;    ("C-c p d" . consult-projectile-find-dir))
-;;   :config
-;;   (setq consult-projectile-function #'consult-projectile))
-
 (use-package project
   :ensure nil
   :bind (("C-c p f" . project-find-file)
@@ -271,7 +247,9 @@
   ("C-x C-r" . consult-recent-file)    ;; Recent files
   ("C-c ?" . consult-flymake)
   ("C-c m" . consult-mode-command)
-  ("C-r" . consult-history)            ;; Minibuffer history
+  ;; NB: no global C-r here.  `consult-history' only works in the minibuffer and
+  ;; in comint buffers (bound in both maps below); globally it just errors and
+  ;; costs you `isearch-backward'.
   ("M-y" . consult-yank-pop)
   ("M-s r"   . consult-ripgrep)     ; project-wide search — the big one
   ("M-s g"   . consult-grep)
@@ -294,40 +272,28 @@
          ("C-x C-d" . consult-dir)
          ("C-x C-j" . consult-dir-jump-file)))
 
-;; (consult-customize
-;;  consult-ripgrep consult-git-grep consult-grep consult-recent-file
-;;  consult-source-recent-file consult-source-project-recent-file
-;;  consult-source-bookmark
-;; :preview-key '(:debounce 0.3 any))
-
 (setq register-preview-delay 0.5
       register-preview-function #'consult-register-format)
 (advice-add #'register-preview :override #'consult-register-window)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Coding environment
-(use-package treesit
-  :ensure nil
-  :defer t
-  :custom
-  (treesit-font-lock-level 4)
-  (treesit-language-soource-alist dk/treesit-languages))
+;; Plain setq rather than use-package :custom: this has to land before treesit
+;; loads, and `defcustom' only sets a default when the symbol is still unbound,
+;; so the value set here survives.  Run `M-x dk/treesit-install-missing' once
+;; per machine to compile the grammars.
+(setq treesit-language-source-alist dk/treesit-languages)
+(setq treesit-font-lock-level 4)
 
-;; Prefer tree-sitter major modes over the classic ones
-(setq major-mode-remap-alist
-      '((c-mode . c-ts-mode)
-	(c++-mode . c++-ts-mode)
-	(c-or-c++-mode . c-or-c++-ts-mode)
-	(python-mode . python-ts-mode)
-	(sh-mode . bash-ts-mode)
-	(js-json-mode . json-ts-mode)
-	(conf-toml-mode . toml-ts-mode)
-        (rust-mode . rust-ts-mode)
-        (go-mode . go-ts-mode)))
+;; Prefer tree-sitter major modes over the classic ones, but only where the
+;; grammar is actually installed.  `treesit-language-available-p' is a C
+;; primitive, so this needs no `require' and costs nothing at startup.
+(dk/treesit-apply-remaps)
 
 ;; Tree-sitter modes without a classic counterpart to remap
 (add-to-list 'auto-mode-alist '("\\(?:CMakeLists\\.txt\\|\\.cmake\\)\\'" . cmake-ts-mode))
 (add-to-list 'auto-mode-alist '("\\.ya?ml\\'" . yaml-ts-mode))
+(add-to-list 'auto-mode-alist '("/go\\.mod\\'" . go-mod-ts-mode))
 
 (use-package eglot
   :ensure nil
@@ -347,7 +313,10 @@
   (setq eglot-sync-connect nil)             ; new: don't block on server startup
   (setq eglot-code-actions-indications '(eldoc-hint margin))
   (setq-default eglot-workspace-configuration
-		'(:haskell (:formattingProvider "fourmolu"))))
+		'(:haskell (:formattingProvider "fourmolu")
+		  :gopls   (:staticcheck t
+			    :usePlaceholders t
+			    :analyses (:unusedparams t :nilness t :shadow t)))))
 
 (with-eval-after-load 'eglot
   ;; One `add-to-list' per server: the value is an alist of (MODES . CONTACT), so a
@@ -388,6 +357,19 @@
          ("C-M-." . xref-find-apropos)))
 
 
+
+;; Workspace-wide LSP symbol search.  consult-imenu covers the current buffer
+;; and xref jumps from an existing reference; this is the "find SYMBOL anywhere
+;; in the project by name" case neither of those handles.
+(use-package consult-eglot
+  :after (consult eglot)
+  :bind (:map eglot-mode-map
+              ("M-g s" . consult-eglot-symbols)))
+
+;; Header line: project -> file -> enclosing function.  Uses LSP where a server
+;; is running, imenu otherwise, so it also works in Elisp and plain buffers.
+(use-package breadcrumb
+  :hook (prog-mode . breadcrumb-local-mode))
 
 (use-package embark
   :bind (("C-." . embark-act)         ;; act on thing at point
@@ -449,14 +431,8 @@
         ("M-l"     . corfu-show-location))   ;; go to definition
   :init
   (global-corfu-mode 1)
-  (corfu-popupinfo-mode 1))
-
-;; Corfu in terminal (uses popon instead of child frames)
-;; (use-package corfu-terminal
-;;   :after corfu
-;;   :config
-;;   (unless (display-graphic-p)
-;;(corfu-terminal-mode 1)
+  (corfu-popupinfo-mode 1)
+  (corfu-history-mode 1))   ;; makes the savehist corfu-history entry actually work
 
 (use-package cape
   :init
@@ -464,9 +440,20 @@
   (add-hook 'completion-at-point-functions #'cape-dabbrev 20)
   :custom (cape-dabbrev-min-length 3))
 
+;; Folding driven by the tree-sitter parse tree; only active in ts-modes, which
+;; now includes Haskell.  `global-treesit-fold-mode' no-ops where no parser is
+;; running, so it is safe to enable everywhere.
+(use-package treesit-fold
+  :init (global-treesit-fold-mode 1)
+  :bind (("C-c f" . treesit-fold-toggle)
+         ("C-c F" . treesit-fold-close-all)))
+
 (use-package apheleia
   :init (apheleia-global-mode +1)
-  :config (add-hook 'apheleia-inhibit-functions #'dk/apheleia-inhibit-unconfigured-c))
+  :config
+  (add-hook 'apheleia-inhibit-functions #'dk/apheleia-inhibit-unconfigured-c)
+  ;; apheleia ships a haskell-mode entry but not one for the ts-mode.
+  (setf (alist-get 'haskell-ts-mode apheleia-mode-alist) 'fourmolu))
 
 (use-package wgrep
   :custom (wgrep-auto-save-buffer t)
@@ -494,26 +481,25 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Langauge specific settings
 
+;; haskell-ts-mode owns `.hs'; haskell-mode stays installed because it supplies
+;; `haskell-compile' and the interactive cabal-repl session, which the ts-mode
+;; has no equivalent for.  Both are listed in `eglot-server-programs' below.
 (use-package haskell-mode
-  :mode ("\\.hs\\'" . haskell-mode)
-  :hook ((haskell-mode . haskell-indentation-mode))
-  ;; (haskell-mode . dk/haskell-setup))
-  :bind
-  (:map haskell-mode-map
-	("C-c C-l" . haskell-process-load-file)
-	("C-c C-z" . haskell-interactive-switch)
-	("C-c C-t" . haskell-mode-show-type-at))
+  :defer t
+  :commands (haskell-compile haskell-interactive-switch haskell-process-load-file)
   :config
   (setq haskell-process-type 'cabal-repl))
 
-(add-hook 'haskell-mode-hook
-          (lambda ()
-            ;; Disable the old school doc mode so it doesn't fight with Eglot
-            (haskell-doc-mode -1)))
-;; Start eglot automatically (optional, if you haven't already)
-;; (eglot-ensure)))
-
-;; (use-package rust-mode)
+(use-package haskell-ts-mode
+  :mode ("\\.hs\\'" . haskell-ts-mode)
+  :hook (haskell-ts-mode . dk/haskell-setup)
+  :bind
+  (:map haskell-ts-mode-map
+	("C-c C-l" . haskell-process-load-file)
+	("C-c C-z" . haskell-interactive-switch)
+	;; Whole-project `cabal build' into compilation-mode, so next-error
+	;; works across the build.  The repl alone cannot do that.
+	("C-c C-c" . haskell-compile)))
 
 (use-package go-mode
   :mode "\\.go\\'")
@@ -522,21 +508,6 @@
   :ensure nil
   :mode "\\.rs\\'"
   :hook (rust-ts-mode . eglot-ensure))
-
-;; (add-hook 'go-mode-hook
-;; 	  (lambda()
-;; 	    (add-hook 'before-save-hook #'gofmt-before-save nil t)))
-
-;; (use-package rustic
-;;   :custom
-;;   (rustic-lsp-client 'eglot)
-;;   :hook
-;; (rustic-mode . eglot-ensure))
-;; :config
-;; (setq rustic-format-on-save t))
-
-;; (use-package clang-format
-;;   :hook ((c-ts-mode c-mode c++-ts-mode c++-mode) . dk/clang-fos))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Markdown mode

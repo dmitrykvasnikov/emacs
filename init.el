@@ -8,12 +8,9 @@
 ;; Config load paths and load external files
 (dk/add-paths-to-list 'load-path '("src") t)
 (dk/add-paths-to-list 'custom-theme-load-path '("themes/") t)
-(load "vars.el" nil t)
-(load "functions.el" nil t)
-(load "keymap.el" nil t)
-(setopt custom-file (locate-user-emacs-file "custom.el"))
-(when (file-exists-p custom-file)
-  (load custom-file))
+(require 'vars)
+(require 'functions)
+(require 'keymap)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Package settings
@@ -229,22 +226,42 @@
 ;; (use-package all-the-icons-dired
 ;;   :hook (dired-mode . all-the-icons-dired-mode))
 
-(use-package projectile
-  :init
-  (setq projectile-auto-discover t)
-  (setq projectile-track-known-projects-automatically t)  ; Auto-add projects
-  (setq projectile-cache-file (expand-file-name "projectile.cache" user-emacs-directory))
-  (projectile-mode +1)
-  ;; Basic settings
-  (setq projectile-completion-system 'default)
-  (setq projectile-indexing-method 'alien)       ; Faster on Unix (Linux/Mac)
-  :bind
-  (:map projectile-mode-map
-	("C-c p" . projectile-command-map)))
+;; (use-package projectile
+;;   :init
+;;   (setq projectile-auto-discover t)
+;;   (setq projectile-track-known-projects-automatically t)  ; Auto-add projects
+;;   (setq projectile-cache-file (expand-file-name "projectile.cache" user-emacs-directory))
+;;   (projectile-mode +1)
+;;   ;; Basic settings
+;;   (setq projectile-completion-system 'default)
+;;   (setq projectile-indexing-method 'alien)       ; Faster on Unix (Linux/Mac)
+;;   :bind
+;;   (:map projectile-mode-map
+;; 	("C-c p" . projectile-command-map)))
 
-(with-eval-after-load 'projectile
-  (add-to-list 'projectile-globally-ignored-buffers "*projectile-files-errors*")
-  (add-to-list 'projectile-globally-ignored-buffers "EGLOT*"))
+;; (with-eval-after-load 'projectile
+;;   (add-to-list 'projectile-globally-ignored-buffers "*projectile-files-errors*")
+;;   (add-to-list 'projectile-globally-ignored-buffers "EGLOT*"))
+
+;; (use-package consult-projectile
+;;   :after projectile
+;;   :bind
+;;   (("C-c p f" . consult-projectile-find-file)
+;;    ("C-c p p" . consult-projectile-switch-project)
+;;    ("C-c p b" . consult-projectile-switch-to-buffer)
+;;    ("C-c p d" . consult-projectile-find-dir))
+;;   :config
+;;   (setq consult-projectile-function #'consult-projectile))
+
+(use-package project
+  :ensure nil
+  :bind (("C-c p f" . project-find-file)
+         ("C-c p p" . project-switch-project)
+         ("C-c p b" . consult-project-buffer)
+         ("C-c p d" . project-find-dir)
+         ("C-c p g" . consult-ripgrep))
+  :custom
+  (project-vc-extra-root-markers '(".project" "Cargo.toml" "go.mod" "*.cabal")))
 
 (use-package consult
   :bind  ("C-x b" . consult-buffer)           ;; Switch buffer (replaces C-x C-b)
@@ -271,11 +288,17 @@
   (consult-preview-delay 0)               ;; No delay
   (consult-line-numbers-widen t))
 
+(use-package consult-dir
+  :bind (("C-x C-d" . consult-dir)
+         :map vertico-map
+         ("C-x C-d" . consult-dir)
+         ("C-x C-j" . consult-dir-jump-file)))
+
 ;; (consult-customize
 ;;  consult-ripgrep consult-git-grep consult-grep consult-recent-file
 ;;  consult-source-recent-file consult-source-project-recent-file
 ;;  consult-source-bookmark
- ;; :preview-key '(:debounce 0.3 any))
+;; :preview-key '(:debounce 0.3 any))
 
 (setq register-preview-delay 0.5
       register-preview-function #'consult-register-format)
@@ -441,19 +464,17 @@
   (add-hook 'completion-at-point-functions #'cape-dabbrev 20)
   :custom (cape-dabbrev-min-length 3))
 
-(use-package consult-projectile
-  :after projectile
-  :bind
-  (("C-c p f" . consult-projectile-find-file)
-   ("C-c p p" . consult-projectile-switch-project)
-   ("C-c p b" . consult-projectile-switch-to-buffer)
-   ("C-c p d" . consult-projectile-find-dir))
-  :config
-  (setq consult-projectile-function #'consult-projectile))
-
 (use-package apheleia
   :init (apheleia-global-mode +1)
   :config (add-hook 'apheleia-inhibit-functions #'dk/apheleia-inhibit-unconfigured-c))
+
+(use-package wgrep
+  :custom (wgrep-auto-save-buffer t)
+  :bind (:map grep-mode-map ("C-c C-p" . wgrep-change-to-wgrep-mode)))
+
+(use-package vundo
+  :bind ("C-c u" . vundo)
+  :custom (vundo-glyph-alist vundo-unicode-symbols))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Version control
@@ -462,9 +483,13 @@
          ("C-c g" . magit-file-dispatch))
   :custom (magit-diff-refine-hunk 'all))
 
-(use-package diff-hl                       ; fringe git indicators
-  :hook ((prog-mode . diff-hl-mode)
-         (dired-mode . diff-hl-dired-mode)))
+(use-package diff-hl
+  :hook ((prog-mode  . diff-hl-mode)
+         (dired-mode . diff-hl-dired-mode)
+         (magit-pre-refresh  . diff-hl-magit-pre-refresh)     
+         (magit-post-refresh . diff-hl-magit-post-refresh))   
+  :config
+  (diff-hl-flydiff-mode 1))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Langauge specific settings
@@ -601,6 +626,10 @@
 (use-package gruvbox-theme)
 (use-package spacemacs-theme)
 (load-theme 'gruber-darker)
+
+(setopt custom-file (locate-user-emacs-file "custom.el"))
+(when (file-exists-p custom-file)
+  (load custom-file))
 
 (provide 'init)
 ;;; init.el ends here

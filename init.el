@@ -8,9 +8,9 @@
 ;; Config load paths and load external files
 (dk/add-paths-to-list 'load-path '("src") t)
 (dk/add-paths-to-list 'custom-theme-load-path '("themes/") t)
+(load "vars.el" nil t)
 (load "functions.el" nil t)
 (load "keymap.el" nil t)
-(load "vars.el" nil t)
 (setopt custom-file (locate-user-emacs-file "custom.el"))
 (when (file-exists-p custom-file)
   (load custom-file))
@@ -36,7 +36,7 @@
 (setq use-short-answers t)
 (setq make-backup-files nil)         ;; do not make backup files
 (setq create-lockfiles nil)
-(setq auto-save-dir (expand-file-name "autosave" user-emacs-directory))
+(setq auto-save-dir dk/auto-save-dir)
 (make-directory auto-save-dir t)
 (setq auto-save-file-name-transforms
       `((".*" ,auto-save-dir t)))
@@ -47,7 +47,9 @@
 (delete-selection-mode t)
 (savehist-mode 1)
 (save-place-mode 1)
-(setq global-auto-revert-mode 1)
+(global-auto-revert-mode 1)
+(setq global-auto-revert-non-file-buffers 1)
+(setq auto-revert-verbose nil)
 (repeat-mode 1)
 (winner-mode 1)
 (setq undo-limit (* 13 160000)
@@ -59,6 +61,33 @@
 (setq isearch-lazy-count t)
 (setq isearch-wrap-pause 'no-ding)
 (setq isearch-repeat-on-direction-change t)
+(setq enable-recursive-minibuffers t)
+(minibuffer-depth-indicate-mode 1)
+(setq read-process-output-max (* 4 1024 1024))
+(setq process-adaptive-read-buffering nil)
+(setq read-extended-command-predicate #'command-completion-default-include-p)
+(setq-default indent-tabs-mode nil)
+(setq-default fill-column 80)
+(setq sentence-end-double-space nil)
+(setq require-final-newline t)
+(setq kill-do-not-save-duplicates t)
+(setq mouse-yank-at-point t)
+(setq confirm-kill-emacs #'yes-or-no-p)
+(setq history-length 1000)
+(setq savehist-additional-variables
+      '(kill-ring register-alist search-ring regexp-search-ring corfu-history))
+(setq recentf-exclude
+      (list (regexp-quote (expand-file-name "elpa/" user-emacs-directory))
+            "/tmp/" "/ssh:" "\\.gz\\'" "/COMMIT_EDITMSG\\'"))
+(setq uniquify-buffer-name-style 'forward)
+(setq bookmark-save-flag 1)
+(setq switch-to-buffer-obey-display-actions t)
+(setq compilation-scroll-output 'first-error)
+(setq describe-bindings-outline t)
+(pixel-scroll-precision-mode 1)
+(context-menu-mode 1)
+(add-hook 'compilation-filter-hook #'ansi-color-compilation-filter)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; UI Settings
@@ -67,27 +96,38 @@
 (set-fringe-mode 10)
 (blink-cursor-mode -1)
 (column-number-mode)
-(xterm-mouse-mode 1)
+(unless (display-graphic-p) (xterm-mouse-mode 1))
 (setq make-cursor-line-fully-visible nil)
 (electric-pair-mode 1)
 (global-hl-line-mode 1)
 (setq scroll-preserve-screen-position t)
 (setq word-wrap t)
-(setq tab-always-indent t)
 ;; Screen positioninig
 (setq recenter-positions '(middle top))
 (setq scroll-conservatively 1000)
 (setq scroll-margin 3)
 (setq next-screen-context-lines 3)
 ;; Fonts
-(set-face-attribute 'default nil :family "Aporetic Sans Mono" :height 115)
-(set-face-attribute 'minibuffer-prompt nil :family "Aporetic Sans Mono" :height 100)
+(when (find-font (font-spec :family dk/font-family))
+  (add-to-list 'default-frame-alist
+               (cons 'font (format "%s-%d" dk/font-family (/ dk/font-height 10))))
+  (set-face-attribute 'minibuffer-prompt nil
+                      :family dk/font-family :height dk/minibuffer-font-height))
+;; (set-face-attribute 'minibuffer-prompt nil :family dk/font-family :height dk/minibuffer-font-height)
+;; (set-face-attribute 'default nil :family dk/font-family  :height dk/font-height)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Packages
-(use-package all-the-icons)
+;; (use-package all-the-icons)
 
-;;(use-package nerd-icons)
+(use-package nerd-icons)
+
+(use-package nerd-icons-dired
+  :hook (dired-mode . nerd-icons-dired-mode))
+
+(use-package nerd-icons-corfu
+  :after corfu
+  :config (add-to-list 'corfu-margin-formatters #'nerd-icons-corfu-formatter))
 
 (use-package doom-modeline
   :init (doom-modeline-mode 1)
@@ -109,10 +149,9 @@
    ("<escape>" . dk/helpful-close)))
 
 (use-package which-key
-  :defer 0
   :config
-  (which-key-mode)
-  (setq which-key-idle-delay 1))
+  :init (which-key-mode)
+  :custom (which-key-idle-delay 0.7))
 
 (use-package rainbow-delimiters
   :hook (prog-mode . rainbow-delimiters-mode))
@@ -187,8 +226,8 @@
 (use-package diredfl
   :hook (dired-mode . diredfl-mode))
 
-(use-package all-the-icons-dired
-  :hook (dired-mode . all-the-icons-dired-mode))
+;; (use-package all-the-icons-dired
+;;   :hook (dired-mode . all-the-icons-dired-mode))
 
 (use-package projectile
   :init
@@ -208,45 +247,48 @@
   (add-to-list 'projectile-globally-ignored-buffers "EGLOT*"))
 
 (use-package consult
-  :bind (;; Buffer navigation
-         ("C-x b" . consult-buffer)           ;; Switch buffer (replaces C-x C-b)
-	 ("C-x 4 b" . consult-buffer-other-window)
-         ("C-c C-f" . consult-find)           ;; Find file (replaces default)
-         ("C-x C-p" . consult-project-find)   ;; Find file in project (IF you use project.el)
-         ("C-s" . consult-line)               ;; Search line in buffer
-         ("C-x C-r" . consult-recent-file)    ;; Recent files
-	 ("C-c ?" . consult-flymake)
-	 ("C-c m" . consult-mode-command)
-         ("C-r" . consult-history)            ;; Minibuffer history
-	 ("M-y" . consult-yank-pop)
-         )
+  :bind  ("C-x b" . consult-buffer)           ;; Switch buffer (replaces C-x C-b)
+  ("C-x 4 b" . consult-buffer-other-window)
+  ("C-c C-f" . consult-find)           ;; Find file (replaces default)
+  ("C-s" . consult-line)               ;; Search line in buffer
+  ("C-x C-r" . consult-recent-file)    ;; Recent files
+  ("C-c ?" . consult-flymake)
+  ("C-c m" . consult-mode-command)
+  ("C-r" . consult-history)            ;; Minibuffer history
+  ("M-y" . consult-yank-pop)
+  ("M-s r"   . consult-ripgrep)     ; project-wide search — the big one
+  ("M-s g"   . consult-grep)
+  ("M-g i"   . consult-imenu)       ; you set org-imenu-depth 4 but have no imenu binding
+  ("M-g I"   . consult-imenu-multi)
+  ("M-g g"   . consult-goto-line)
+  ("M-g m"   . consult-mark)
+  ("M-'"     . consult-register-store)
+  ("C-x r b" . consult-bookmark)
+  (:map minibuffer-local-map ("C-r" . consult-history))
+  (:map comint-mode-map      ("C-r" . consult-history))
   :custom
   (consult-preview-key 'any)              ;; Preview while typing
   (consult-preview-delay 0)               ;; No delay
-  (consult-line-numbers-widen t)          ;; Show line numbers in search
-  )
+  (consult-line-numbers-widen t))
+
+;; (consult-customize
+;;  consult-ripgrep consult-git-grep consult-grep consult-recent-file
+;;  consult-source-recent-file consult-source-project-recent-file
+;;  consult-source-bookmark
+ ;; :preview-key '(:debounce 0.3 any))
+
+(setq register-preview-delay 0.5
+      register-preview-function #'consult-register-format)
+(advice-add #'register-preview :override #'consult-register-window)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Coding environment
 (use-package treesit
   :ensure nil
+  :defer t
   :custom
-  (treesit-font-lock-level 4)		; maximum highlighting detail
-  :config
-  (setq treesit-language-source-alist
-	'((bash "https://github.com/tree-sitter/tree-sitter-bash")
-	  (c "https://github.com/tree-sitter/tree-sitter-c")
-	  (cpp "https://github.com/tree-sitter/tree-sitter-cpp")
-	  (cmake "https://github.com/uyha/tree-sitter-cmake")
-	  (json "https://github.com/tree-sitter/tree-sitter-json")
-	  (python "https://github.com/tree-sitter/tree-sitter-python")
-	  (rust "https://github.com/tree-sitter/tree-sitter-rust")
-	  (toml "https://github.com/tree-sitter/tree-sitter-toml")
-	  (yaml "https://github.com/ikatyang/tree-sitter-yaml")))
-  ;; Compile and install any missing grammar (one-time, needs git + a C compiler)
-  (dolist (lang (mapcar #'car treesit-language-source-alist))
-    (unless (treesit-language-available-p lang)
-      (treesit-install-language-grammar lang))))
+  (treesit-font-lock-level 4)
+  (treesit-language-soource-alist dk/treesit-languages))
 
 ;; Prefer tree-sitter major modes over the classic ones
 (setq major-mode-remap-alist
@@ -256,7 +298,9 @@
 	(python-mode . python-ts-mode)
 	(sh-mode . bash-ts-mode)
 	(js-json-mode . json-ts-mode)
-	(conf-toml-mode . toml-ts-mode)))
+	(conf-toml-mode . toml-ts-mode)
+        (rust-mode . rust-ts-mode)
+        (go-mode . go-ts-mode)))
 
 ;; Tree-sitter modes without a classic counterpart to remap
 (add-to-list 'auto-mode-alist '("\\(?:CMakeLists\\.txt\\|\\.cmake\\)\\'" . cmake-ts-mode))
@@ -265,12 +309,10 @@
 (use-package eglot
   :ensure nil
   :hook ((haskell-mode . eglot-ensure)
+         (haskell-ts-mode . eglot-ensure)
 	 (c-ts-mode . eglot-ensure)
-	 (c-mode . eglot-ensure)
 	 (c++-ts-mode . eglot-ensure)
-	 (c++-mode . eglot-ensure)
-	 (go-mode . eglot-ensure)
-	 (rust-mode . eglot-ensure)
+	 (go-ts-mode . eglot-ensure)
 	 (rust-ts-mode . eglot-ensure)
 	 (python-base-mode . eglot-ensure))
   ;;(rust-mode . eglot-ensure))      ;; Rustic is enabled
@@ -278,68 +320,58 @@
   (add-hook 'prog-mode-hook 'eldoc-mode)
   (setq eglot-events-buffer-config '(:size 0))
   (setq eglot-extend-to-xref t)             ; start eglot for cross-referenced files
+  (setq eglot-autoshutdown t)               ; new: kill the server with the last buffer
+  (setq eglot-sync-connect nil)             ; new: don't block on server startup
   (setq eglot-code-actions-indications '(eldoc-hint margin))
   (setq-default eglot-workspace-configuration
 		'(:haskell (:formattingProvider "fourmolu"))))
 
-;; One `add-to-list' per server: the value is an alist of (MODES . CONTACT), so a
-;; single call must not wrap them in an extra list -- and it must be quoted once,
-;; not twice.  `add-to-list' prepends and eglot takes the first match, so these
-;; win over eglot's built-in defaults.
 (with-eval-after-load 'eglot
+  ;; One `add-to-list' per server: the value is an alist of (MODES . CONTACT), so a
+  ;; single call must not wrap them in an extra list.  `add-to-list' prepends and
+  ;; eglot takes the first match, so these win over eglot's built-in defaults.
   (add-to-list 'eglot-server-programs
 	       '((haskell-mode haskell-ts-mode)
-		 . ("haskell-language-server-wrapper" "--lsp")))
+                 . ("haskell-language-server-wrapper" "--lsp")))
   (add-to-list 'eglot-server-programs
 	       '((rust-ts-mode rust-mode)
-		 . ("rust-analyzer" :initializationOptions
-		    (:check (:command "clippy")))))
+                 . ("rust-analyzer" :initializationOptions
+                    (:check (:command "clippy")))))
   ;; Separate entries: the std fallback flag differs between C and C++
   ;; (used only when there is no compile_commands.json / .clangd)
   (add-to-list 'eglot-server-programs
 	       '((c-ts-mode c-mode)
-		 . ("clangd" "--clang-tidy"
-		    :initializationOptions (:fallbackFlags ["-std=c23"]))))
+                 . ("clangd" "--clang-tidy"
+                    :initializationOptions (:fallbackFlags ["-std=c23"]))))
   (add-to-list 'eglot-server-programs
 	       '((c++-ts-mode c++-mode)
-		 . ("clangd" "--clang-tidy"
-		    :initializationOptions (:fallbackFlags ["-std=c++23"])))))
+                 . ("clangd" "--clang-tidy"
+                    :initializationOptions (:fallbackFlags ["-std=c++23"]))))
+  (advice-add 'eglot--format-markup :filter-args #'dk/eglot-clean-haskell-markdown))
 
-(setq eglot-put-doc-in-buffer t) ; Keeps the heavy markdown out of the tiny echo area
-
-(with-eval-after-load 'eglot
-  (defun my-eglot-clean-haskell-markdown (args)
-    "Safely strip Haskell code fences from Eglot markup data."
-    (let* ((markup (car args))
-           ;; If markup is a plist (list), look for the :value key, otherwise use the string
-           (str (if (listp markup) (plist-get markup :value) markup)))
-      (when (and (stringp str) (string-match-p "```haskell" str))
-        (let ((clean-str (replace-regexp-in-string "```haskell\n\\|```" "" str)))
-          (if (listp markup)
-              (plist-put markup :value clean-str)
-            (setcar args clean-str)))))
-    args)
-  (advice-add 'eglot--format-markup :filter-args #'my-eglot-clean-haskell-markdown))
+;; one line in the echo area, full docs in a dedicated buffer on demand
+(setq eldoc-echo-area-use-multiline-p 1)
+(setq eldoc-echo-area-prefer-doc-buffer t)
+(setq eldoc-documentation-strategy #'eldoc-documentation-compose-eagerly)
 
 (use-package xref
   :ensure nil
+  :config
+  (setq xref-show-xrefs-function       #'consult-xref)
+  (setq xref-show-definitions-function #'consult-xref)
   :bind (("M-."   . xref-find-definitions)
          ("M-?"   . xref-find-references)
          ("M-,"   . xref-go-back)
          ("C-M-." . xref-find-apropos)))
 
+
+
 (use-package embark
-  :ensure t
   :bind (("C-." . embark-act)         ;; act on thing at point
          ("C-;" . embark-dwim)        ;; do what I mean
-         ("C-h B" . embark-bindings)) ;; show bindings
-  :init
-  ;; Use Embark for Corfu actions
-  (setq completion-cycle-threshold 3)
-  (setq tab-always-indent 'complete))
+         ("C-h B" . embark-bindings)))
 
 (use-package embark-consult
-  :ensure t
   :after (embark consult)
   :hook (embark-collect-mode . consult-preview-at-point-mode))
 
@@ -365,10 +397,14 @@
   (define-fringe-bitmap 'flymake-note-indicator
     [#b00100000] nil nil '(center repeated)))
 
+(setq flymake-error-bitmap   '(flymake-error-indicator   compilation-error)
+      flymake-warning-bitmap '(flymake-warning-indicator compilation-warning)
+      flymake-note-bitmap    '(flymake-note-indicator    compilation-info))
+
 (use-package corfu
-  :ensure t
-  ;; Optional: enable corfu-cycle for TAB cycling
   :custom
+  (tab-always-indent 'complete)     ; TAB indents, then completes
+  (completion-cycle-threshold 3)
   (corfu-cycle t)                   ;; TAB cycles candidates
   (corfu-auto t)                    ;; auto-popup completion
   (corfu-auto-delay 0.2)            ;; delay before auto popup
@@ -381,39 +417,29 @@
   (corfu-separator ?\s)             ;; space is separator (for LSP)
   (corfu-scroll-margin 5)           ;; scroll margin
   (corfu-preselect :first)
-
   :bind
   (:map corfu-map
         ("TAB"     . corfu-insert)
-        ("RET"     . corfu-insert)
+        ("RET"     . nil)
         ("M-d"     . corfu-popupinfo-toggle) ;; toggle doc popup
         ("C-g"     . corfu-quit)
         ("M-l"     . corfu-show-location))   ;; go to definition
-
   :init
   (global-corfu-mode 1)
   (corfu-popupinfo-mode 1))
 
 ;; Corfu in terminal (uses popon instead of child frames)
-(use-package corfu-terminal
-  :ensure t
-  :after corfu
-  :config
-  (unless (display-graphic-p)
-    (corfu-terminal-mode 1)))
+;; (use-package corfu-terminal
+;;   :after corfu
+;;   :config
+;;   (unless (display-graphic-p)
+;;(corfu-terminal-mode 1)
 
 (use-package cape
   :init
-  (add-hook 'completion-at-point-functions #'cape-file)
-  (add-hook 'completion-at-point-functions #'cape-dabbrev)
+  (add-hook 'completion-at-point-functions #'cape-file 10)
+  (add-hook 'completion-at-point-functions #'cape-dabbrev 20)
   :custom (cape-dabbrev-min-length 3))
-
-;; Icons forCorfu candidates
-(use-package kind-icon
-  :ensure t
-  :after corfu
-  :config
-  (add-to-list 'corfu-margin-formatters #'kind-icon-margin-formatter))
 
 (use-package consult-projectile
   :after projectile
@@ -426,7 +452,8 @@
   (setq consult-projectile-function #'consult-projectile))
 
 (use-package apheleia
-  :init (apheleia-global-mode +1))
+  :init (apheleia-global-mode +1)
+  :config (add-hook 'apheleia-inhibit-functions #'dk/apheleia-inhibit-unconfigured-c))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Version control
@@ -445,7 +472,7 @@
 (use-package haskell-mode
   :mode ("\\.hs\\'" . haskell-mode)
   :hook ((haskell-mode . haskell-indentation-mode))
-  ;; (haskell-mode . haskell-doc-mode))
+  ;; (haskell-mode . dk/haskell-setup))
   :bind
   (:map haskell-mode-map
 	("C-c C-l" . haskell-process-load-file)
@@ -461,36 +488,39 @@
 ;; Start eglot automatically (optional, if you haven't already)
 ;; (eglot-ensure)))
 
-(use-package rust-mode)
+;; (use-package rust-mode)
 
 (use-package go-mode
-  :ensure t
   :mode "\\.go\\'")
 
-(add-hook 'go-mode-hook
-	  (lambda()
-	    (add-hook 'before-save-hook #'gofmt-before-save nil t)))
+(use-package rust-ts-mode
+  :ensure nil
+  :mode "\\.rs\\'"
+  :hook (rust-ts-mode . eglot-ensure))
 
-(use-package rustic
-  :custom
-  (rustic-lsp-client 'eglot)
-  :hook
-  (rustic-mode . eglot-ensure)
-  :config
-  (setq rustic-format-on-save t))
+;; (add-hook 'go-mode-hook
+;; 	  (lambda()
+;; 	    (add-hook 'before-save-hook #'gofmt-before-save nil t)))
 
-(use-package clang-format
-  :hook ((c-ts-mode c-mode c++-ts-mode c++-mode) . dk/clang-fos))
+;; (use-package rustic
+;;   :custom
+;;   (rustic-lsp-client 'eglot)
+;;   :hook
+;; (rustic-mode . eglot-ensure))
+;; :config
+;; (setq rustic-format-on-save t))
+
+;; (use-package clang-format
+;;   :hook ((c-ts-mode c-mode c++-ts-mode c++-mode) . dk/clang-fos))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Markdown mode
 (use-package markdown-mode
-  :ensure t
   ;; GFM everywhere: tables, strikethrough, checkboxes, ``` fences
   :mode (("\\.md\\'"       . gfm-mode)
          ("\\.markdown\\'" . gfm-mode)
          ("README\\.md\\'" . gfm-mode))
-  :hook (markdown-mode . dk/markdown-prose)
+  :hook (markdown-mode . dk/prose-setup)
   :custom
   (markdown-command '("pandoc" "--from=gfm" "--to=html5" "--standalone"))
   (markdown-header-scaling t)
@@ -509,7 +539,6 @@
               ("M-<down>" . markdown-move-down)))
 
 (use-package valign
-  :ensure t
   :hook ((markdown-mode org-mode) . valign-mode)
   :custom (valign-fancy-bar t))
 
@@ -517,7 +546,7 @@
 ;; ORG mode
 (use-package org
   :ensure nil
-  :hook (org-mode . dk/org-prose)
+  :hook (org-mode . dk/prose-setup)
   :custom
   (org-agenda-files (list "~/org"))
   (org-log-done 'time)
@@ -546,7 +575,6 @@
   (org-imenu-depth 4))
 
 (use-package org-modern
-  :ensure t
   :hook (org-mode . org-modern-mode)
   :custom
   (org-modern-table nil)          ;; valign owns tables — don't run both
@@ -556,7 +584,6 @@
   (org-modern-list '((?- . "–") (?+ . "•") (?* . "‣"))))
 
 (use-package org-appear
-  :ensure t
   :hook (org-mode . org-appear-mode)
   :custom
   (org-appear-autoemphasis t)
@@ -567,10 +594,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Theme settings
-(add-hook 'enable-theme-functions
-	  (lambda (theme)
-	    (message "Theme enabled: %s" theme)
-	    (dk/sync-orderless)))
+(add-hook 'enable-theme-functions #'dk/theme-hook)
 (setq custom-safe-themes t)
 (use-package doom-themes)
 (use-package ef-themes)

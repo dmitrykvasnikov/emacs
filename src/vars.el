@@ -73,5 +73,9 @@ The remap is installed only when LANGUAGE's grammar is present, so a
 missing grammar falls back to the classic mode instead of leaving a
 parser-less tree-sitter mode with no font-lock, indent or imenu.")
 
+(defvar dk/eglot-connect-wait 15
+  "Seconds an xref jump waits for a starting LSP server before giving up.
+Used by `dk/xref-wait-for-eglot'.  C-g interrupts the wait.")
+
 (provide 'vars)
 ;;; vars.el ends here

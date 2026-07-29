@@ -302,6 +302,7 @@
 	 (c-ts-mode . eglot-ensure)
 	 (c++-ts-mode . eglot-ensure)
 	 (go-ts-mode . eglot-ensure)
+	 (go-mode . eglot-ensure)       ; the fallback mode when the grammar is gone
 	 (rust-ts-mode . eglot-ensure)
 	 (python-base-mode . eglot-ensure))
   ;;(rust-mode . eglot-ensure))      ;; Rustic is enabled
@@ -310,7 +311,11 @@
   (setq eglot-events-buffer-config '(:size 0))
   (setq eglot-extend-to-xref t)             ; start eglot for cross-referenced files
   (setq eglot-autoshutdown t)               ; new: kill the server with the last buffer
-  (setq eglot-sync-connect nil)             ; new: don't block on server startup
+  ;; `eglot-sync-connect' deliberately keeps its default of 3.  With nil,
+  ;; opening a file never waits at all, and every jump attempted before the
+  ;; server answers `initialize' falls through to the etags backend — which is
+  ;; how M-. ends up asking for a TAGS file instead of jumping.  See also
+  ;; `dk/xref-wait-for-eglot', which covers the rest of that window.
   (setq eglot-code-actions-indications '(eldoc-hint margin))
   (setq-default eglot-workspace-configuration
 		'(:haskell (:formattingProvider "fourmolu")
@@ -355,6 +360,11 @@
          ("M-?"   . xref-find-references)
          ("M-,"   . xref-go-back)
          ("C-M-." . xref-find-apropos)))
+
+;; Advise the commands, not the backend: `xref-backend-functions' is consulted
+;; the moment M-. runs, so the server has to be up before that, not after.
+(advice-add 'xref-find-definitions :before #'dk/xref-wait-for-eglot)
+(advice-add 'xref-find-references  :before #'dk/xref-wait-for-eglot)
 
 
 

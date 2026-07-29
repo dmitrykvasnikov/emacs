@@ -106,6 +106,42 @@ instead of a tree-sitter mode with no parser behind it."
     (when (treesit-language-available-p lang)
       (add-to-list 'major-mode-remap-alist (cons classic ts)))))
 
+(defun dk/eglot-expected-p ()
+  "Non-nil when this buffer's major mode is set up to start Eglot.
+Walks the mode's parents, so `python-ts-mode' is covered by the hook on
+`python-base-mode'."
+  (and buffer-file-name
+       (seq-some (lambda (mode)
+                   (let ((hook (intern-soft (format "%s-hook" mode))))
+                     (and hook (boundp hook)
+                          (memq 'eglot-ensure (symbol-value hook)))))
+                 (derived-mode-all-parents major-mode))))
+
+(defun dk/xref-wait-for-eglot (&rest _)
+  "Wait for a starting Eglot server before xref settles on a backend.
+`eglot-ensure' connects in the background, so right after a file is
+opened the buffer is not managed yet and `xref-backend-functions' still
+answers `etags': M-. then prompts for a TAGS file that does not exist
+instead of jumping, which reads as \"navigation is broken\".  The window
+is milliseconds for a warm server but seconds for gopls on a cold cache
+in a cgo-heavy project — precisely when the first jump is made.
+
+Waiting here rather than raising `eglot-sync-connect' keeps visiting a
+file instant and pays the cost only on the jump that needs it.  Erroring
+out afterwards is deliberate: in a mode that has an LSP server the etags
+fallback has nothing useful to offer."
+  ;; `eglot--managed-mode' first: one buffer-local variable read short-circuits
+  ;; every jump in a connected buffer, which is all of them after the first.
+  (when (and (not (bound-and-true-p eglot--managed-mode))
+             (dk/eglot-expected-p))
+    (with-delayed-message (1 "Waiting for the language server...")
+      (let ((deadline (+ (float-time) dk/eglot-connect-wait)))
+        (while (and (not (bound-and-true-p eglot--managed-mode))
+                    (< (float-time) deadline))
+          (accept-process-output nil 0.05))))
+    (unless (bound-and-true-p eglot--managed-mode)
+      (user-error "No language server in this buffer yet; try M-x eglot"))))
+
 (defun dk/apheleia-inhibit-unconfigured-c ()
   "Inhibit apheleia in C/C++ buffers with no .clang-format in scope."
   (and (derived-mode-p 'c-mode 'c-ts-mode 'c++-mode 'c++-ts-mode)

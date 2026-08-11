@@ -1,9 +1,11 @@
 ;; -*- lexical-binding: t; -*-
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Keyboard mappings
+;;; Global keyboard mappings
+;;
+;; Loaded last, so a binding here wins over anything a package set globally.
+;; Package-local bindings (:map ...) stay next to their `use-package'.
 
-(global-set-key (kbd "<escape>") 'keyboard-escape-quit)
+(global-set-key (kbd "<escape>") #'keyboard-escape-quit)
 (global-set-key (kbd "C-x C-b") #'ibuffer)
 (global-set-key (kbd "M-o") #'other-window)
 (global-set-key (kbd "M-/") #'comment-or-uncomment-region)
@@ -15,7 +17,7 @@
 (global-set-key (kbd "M-c") #'capitalize-dwim)
 (global-set-key (kbd "C-c r") #'cua-mode)
 (global-set-key (kbd "M-x") #'dk/M-x-dwim)
-(global-set-key (kbd "C-c k") (lambda() (interactive) (kill-buffer (current-buffer))))
+(global-set-key (kbd "C-c k") #'dk/kill-current-buffer)
 (global-set-key (kbd "C-c e") #'eval-buffer)
 
 ;; Minibuffer editing: Shift-Backspace kills the previous word.
@@ -23,5 +25,5 @@
 ;; (completion, must-match, vertico-map, ...), so one binding covers all prompts.
 (define-key minibuffer-local-map (kbd "S-<backspace>") #'backward-kill-word)
 
-(provide 'keymap)
-;;; keymap.el ends here
+(provide 'dk-keymap)
+;;; dk-keymap.el ends here

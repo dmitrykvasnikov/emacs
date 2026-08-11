@@ -23,7 +23,7 @@ dropped, and every auto-save lands in `user-emacs-directory' instead.")
   "Height (1/10 pt) of the `minibuffer-prompt' face.")
 
 (defvar dk/theme 'gruber-darker
-  "Theme loaded at start-up by src/theme.el.")
+  "Theme loaded at start-up by src/dk-theme.el.")
 
 (defvar dk/org-directory "~/org"
   "Root directory of the org files, used for `org-agenda-files'.")

@@ -72,6 +72,17 @@ C-g or ESC keeps its usual meaning whenever no helpful window is up."
     t))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Config maintenance
+(defun dk/recompile-config (&optional force)
+  "Byte-compile the config modules in src/.
+Not run automatically: `load-prefer-newer' is t, so a .elc that has gone
+stale is ignored in favour of the .el rather than silently loaded, which
+makes leaving this un-run harmless.  With FORCE (the prefix argument),
+recompile even the files whose .elc is already current."
+  (interactive "P")
+  (byte-recompile-directory (dk/add-to-confdir "src") 0 force))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Commands
 (defun dk/M-x-dwim ()
   "Run M-x as normal, unless the minibuffer is active, but not selected"
@@ -120,9 +131,6 @@ does not derive from `c-mode'."
   "Prose-friendly display: soft wrapping and a bit of extra line spacing."
   (visual-line-mode 1)
   (setq-local line-spacing 0.15))
-
-(defalias 'dk/markdown-prose #'dk/prose-display)
-(defalias 'dk/org-prose #'dk/prose-display)
 
 (provide 'dk-functions)
 ;;; dk-functions.el ends here

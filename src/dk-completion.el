@@ -137,6 +137,15 @@
   (add-hook 'completion-at-point-functions #'cape-dabbrev -5)
   :custom (cape-dabbrev-min-length 3))
 
+;; corfu draws its popup with child frames, which a terminal frame does not have
+;; -- without this, completion in `emacsclient -nw' is invisible.  The mode is
+;; safe to enable unconditionally: `corfu-terminal-disable-on-gui' defaults to t
+;; and every entry point re-checks `display-graphic-p', so a mixed session of GUI
+;; and terminal frames gets the right popup in each.
+(use-package corfu-terminal
+  :after corfu
+  :config (corfu-terminal-mode 1))
+
 ;; Kind of each candidate (function, variable, class, ...) in the corfu margin,
 ;; taken from the CAPF's `:company-kind'.  Only one margin formatter may be
 ;; installed -- do not add a second one alongside this.

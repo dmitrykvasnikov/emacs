@@ -9,7 +9,7 @@
   :mode (("\\.md\\'"       . gfm-mode)
          ("\\.markdown\\'" . gfm-mode)
          ("README\\.md\\'" . gfm-mode))
-  :hook (markdown-mode . dk/markdown-prose)
+  :hook (markdown-mode . dk/prose-display)
   :custom
   (markdown-command '("pandoc" "--from=gfm" "--to=html5" "--standalone"))
   (markdown-header-scaling t)
@@ -36,7 +36,7 @@
 ;; Org
 (use-package org
   :ensure nil                           ; built-in
-  :hook (org-mode . dk/org-prose)
+  :hook (org-mode . dk/prose-display)
   :custom
   (org-agenda-files (list dk/org-directory))
   (org-log-done 'time)
@@ -70,7 +70,9 @@
   (org-modern-table nil)          ;; valign owns tables — don't run both
   (org-modern-star 'replace)      ;; ◉ ○ ◈ instead of ***; 'fold for folding indicators
   (org-modern-hide-stars 'leading)
-  (org-modern-block-fringe nil)   ;; set nil unless you enable fringes in org
+  ;; Fringes are on (dk-ui.el sets `set-fringe-mode' to 10), so this can be
+  ;; flipped to t for a fringe bar down the side of src/quote blocks.
+  (org-modern-block-fringe nil)
   (org-modern-list '((?- . "–") (?+ . "•") (?* . "‣"))))
 
 (use-package org-appear

@@ -3,8 +3,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; User settings
-(setq-default user-full-name "Dmitry Kvasnikov"
-              user-mail-address "dmitry.kvasnikov@gmail.com")
+;; `setq', not `setq-default': neither of these is ever buffer-local.
+(setq user-full-name "Dmitry Kvasnikov"
+      user-mail-address "dmitry.kvasnikov@gmail.com")
 
 ;; Must be exactly this: a literal string, in a setq of its own, in this file.
 ;; `display-startup-echo-area-message' regexp-scans `user-init-file' for that

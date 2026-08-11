@@ -31,8 +31,10 @@
 ;;   dk-defaults     core editing behaviour
 ;;   dk-ui           look and feel, modeline, help buffers
 ;;   dk-completion   vertico/consult/corfu/embark
-;;   dk-navigation   recentf, dired, projectile
+;;   dk-navigation   recentf, dired, project
 ;;   dk-vcs          magit, diff-hl
+;;   dk-treesit      grammars and major-mode remapping (before the two below:
+;;                   sets `major-mode-remap-alist' and the rust-mode knob)
 ;;   dk-programming  eglot, flymake, apheleia, prog-mode display
 ;;   dk-languages    per-language modes and LSP servers
 ;;   dk-writing      markdown and org
@@ -47,6 +49,7 @@
     "dk-completion"
     "dk-navigation"
     "dk-vcs"
+    "dk-treesit"
     "dk-programming"
     "dk-languages"
     "dk-writing"

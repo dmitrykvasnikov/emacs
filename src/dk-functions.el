@@ -64,14 +64,15 @@ If current window has full frame width, split right; otherwise split below."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Language hooks
-(defun dk/clang-format-on-save ()
-  "Format the buffer with clang-format on save, if the tree has a .clang-format."
-  (when (locate-dominating-file default-directory ".clang-format")
-    (add-hook 'before-save-hook #'clang-format-buffer nil t)))
-
-(defun dk/go-format-on-save ()
-  "Run `gofmt' on save in this buffer."
-  (add-hook 'before-save-hook #'gofmt-before-save nil t))
+(defun dk/no-clang-format-p ()
+  "Non-nil in a C/C++ buffer whose tree carries no .clang-format.
+Used from `apheleia-inhibit-functions'.  Without it apheleia would
+reformat every C buffer to clang-format's built-in LLVM style; the
+per-buffer `before-save-hook' this replaced was conditional in the same
+way.  Both the ts and the classic modes are listed because `c-ts-mode'
+does not derive from `c-mode'."
+  (and (derived-mode-p '(c-ts-mode c++-ts-mode c-mode c++-mode))
+       (not (locate-dominating-file default-directory ".clang-format"))))
 
 (defun dk/haskell-disable-doc-mode ()
   "Turn off `haskell-doc-mode', it fights with eglot/eldoc over the echo area."

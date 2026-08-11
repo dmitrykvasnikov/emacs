@@ -22,14 +22,20 @@
 ;; LSP
 (use-package eglot
   :ensure nil                           ; built-in
-  :hook ((haskell-mode . eglot-ensure)
-         (c-ts-mode    . eglot-ensure)
-         (c-mode       . eglot-ensure)
-         (c++-ts-mode  . eglot-ensure)
-         (c++-mode     . eglot-ensure)
-         (go-mode      . eglot-ensure)
+  ;; Only the tree-sitter modes are listed: dk-treesit.el remaps c-mode,
+  ;; c++-mode and go-mode onto them, so the classic hooks would never run.
+  ;; Haskell is the exception -- it stays on haskell-mode by default and
+  ;; `dk/haskell-toggle-ts' switches it, so both are named.  A parent mode's
+  ;; hook does not run for its children here: haskell-ts-mode registers
+  ;; haskell-mode via `derived-mode-add-parents', which teaches
+  ;; `derived-mode-p' about the relation but does not chain the hooks.
+  :hook ((haskell-mode    . eglot-ensure)
+         (haskell-ts-mode . eglot-ensure)
+         (c-ts-mode       . eglot-ensure)
+         (c++-ts-mode     . eglot-ensure)
+         (go-ts-mode      . eglot-ensure)
          ;; rust is started by rustic, see dk-languages.el
-         (prog-mode    . eldoc-mode))
+         (prog-mode       . eldoc-mode))
   :config
   (setq eglot-events-buffer-config '(:size 0))
   (setq eglot-extend-to-xref t)         ; start eglot for cross-referenced files
@@ -72,9 +78,16 @@
     [#b00100000] nil nil '(center repeated)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Formatting on save (per-language formatters, see `apheleia-mode-alist')
+;; Formatting on save.  apheleia is the *only* formatter: `apheleia-mode-alist'
+;; already covers every mode used here, ts modes included, and the per-language
+;; `before-save-hook' formatters that used to sit alongside it in
+;; dk-languages.el (gofmt, clang-format) plus `rustic-format-on-save' were all
+;; running a second time over the same buffer.
 (use-package apheleia
-  :init (apheleia-global-mode +1))
+  :init (apheleia-global-mode +1)
+  :config
+  ;; clang-format only where the tree actually asks for it
+  (add-to-list 'apheleia-inhibit-functions #'dk/no-clang-format-p))
 
 (provide 'dk-programming)
 ;;; dk-programming.el ends here

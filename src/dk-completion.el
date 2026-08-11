@@ -68,7 +68,12 @@
          ("M-y"     . consult-yank-pop))
   :custom
   (consult-preview-key 'any)              ;; preview while moving
-  (consult-line-numbers-widen t))
+  (consult-line-numbers-widen t)
+  :config
+  ;; Keep eglot's own buffers out of the buffer list.  This lived in
+  ;; `projectile-globally-ignored-buffers' before; project.el has no
+  ;; equivalent, and consult is what actually lists buffers here.
+  (add-to-list 'consult-buffer-filter "\\`EGLOT"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Act on the thing at point / on candidates

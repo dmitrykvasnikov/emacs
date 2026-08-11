@@ -63,10 +63,26 @@
    ("C-h v" . helpful-variable)
    ("C-h k" . helpful-key)
    ("C-h x" . helpful-command)
-   ("C-h C-h" . helpful-at-point)
-   :map helpful-mode-map
-   ("C-g" . dk/helpful-close)
-   ("<escape>" . dk/helpful-close)))
+   ("C-h C-h" . helpful-at-point))
+  :config
+  ;; Dismiss the helpful window with C-g or ESC from wherever point happens to
+  ;; be.  A binding in `helpful-mode-map' only fires once the helpful buffer is
+  ;; selected, and `dk/helpful-open' deliberately does not select it, so the
+  ;; quit commands themselves have to know about the window.
+  ;;
+  ;; `:before-until' means the quit is swallowed only when a helpful window was
+  ;; actually closed; with none up, C-g and ESC behave exactly as before.  C-g
+  ;; at a prompt runs `minibuffer-keyboard-quit' rather than `keyboard-quit',
+  ;; so aborting a minibuffer is untouched.  These live in `:config' because
+  ;; helpful is autoloaded -- there can be no helpful window before it loads.
+  (define-advice keyboard-quit (:before-until () dk/dismiss-helpful)
+    "Close a visible helpful window instead of quitting."
+    (dk/helpful-dismiss))
+  (define-advice keyboard-escape-quit (:before-until () dk/dismiss-helpful)
+    "Close a visible helpful window instead of quitting.
+Also keeps `keyboard-escape-quit' from reaching its `delete-other-windows'
+branch, which would otherwise tear down unrelated splits."
+    (dk/helpful-dismiss)))
 
 (provide 'dk-ui)
 ;;; dk-ui.el ends here

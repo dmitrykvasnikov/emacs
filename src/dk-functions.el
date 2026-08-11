@@ -29,23 +29,38 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Helpful helpers
 (defun dk/helpful-open (buf)
-  "Open helpful buffer BUF in a split window.
-If current window has full frame width, split right; otherwise split below."
-  (select-window
-   (if (window-full-width-p)
-       (split-window-right)
-     (split-window-below)))
-  (switch-to-buffer buf))
+  "Display helpful buffer BUF in a split, without leaving the current window.
+If the current window has full frame width, split right; otherwise split
+below.  Point stays where it was, so the docs can be read and dismissed
+without ever moving into them -- see `dk/helpful-dismiss'.
+`helpful-switch-buffer-function' is called after `helpful-update' has
+already run inside BUF, and its return value is discarded, so declining
+to select the new window is safe."
+  (set-window-buffer
+   (if (window-full-width-p) (split-window-right) (split-window-below))
+   buf))
 
-(defun dk/helpful-close ()
-  "Close the helpful window and kill its buffer."
+(defun dk/helpful-window ()
+  "Return a live window showing a `helpful-mode' buffer, or nil."
+  (seq-find (lambda (win)
+              (provided-mode-derived-p
+               (buffer-local-value 'major-mode (window-buffer win))
+               'helpful-mode))
+            (window-list nil 'no-minibuf)))
+
+(defun dk/helpful-dismiss ()
+  "Close the visible helpful window, if there is one, and kill its buffer.
+Returns non-nil when a window was actually closed, which is what lets
+this be used as `:before-until' advice on the quit commands: a plain
+C-g or ESC keeps its usual meaning whenever no helpful window is up."
   (interactive)
-  (let ((buf (current-buffer)))
-    ;; Delete the window, but only if it's not the only one in the frame
-    (unless (one-window-p)
-      (delete-window))
-    ;; Kill the helpful buffer
-    (kill-buffer buf)))
+  (when-let* ((win (dk/helpful-window))
+              (buf (window-buffer win)))
+    ;; Only delete the window if it isn't the last one in the frame.
+    (unless (one-window-p 'no-minibuf)
+      (delete-window win))
+    (kill-buffer buf)
+    t))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Commands

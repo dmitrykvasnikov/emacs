@@ -7,10 +7,17 @@
 
 (setq custom-safe-themes t)
 
-(use-package doom-themes)
-(use-package ef-themes)
-(use-package gruvbox-theme)
-(use-package spacemacs-theme)
+;; `:defer t' throughout.  A theme package does not need to be *loaded* for
+;; `load-theme' or `consult-theme' to find its themes: `custom-theme-load-path'
+;; defaults to (custom-theme-directory t), where t stands for `load-path', and
+;; package activation already puts every package directory there.  Each theme
+;; file `require's its own package at the top, so whichever theme is actually
+;; enabled pulls in what it needs.  Loading all four up front cost ~65ms of
+;; startup while the theme in use (gruber-darker) is a vendored one in themes/.
+(use-package doom-themes    :defer t)
+(use-package ef-themes      :defer t)
+(use-package gruvbox-theme  :defer t)
+(use-package spacemacs-theme :defer t)
 
 ;; Named function, so re-loading this file replaces the hook instead of
 ;; stacking another anonymous copy of it.

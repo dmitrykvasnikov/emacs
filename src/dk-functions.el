@@ -26,6 +26,15 @@
                     orderless-match-face-3))
       (set-face-attribute face nil :foreground fg :background 'unspecified :underline t))))
 
+;; Mouse support on a terminal frame.  Called from `tty-setup-hook' rather than
+;; unconditionally at startup: `xterm-mouse-mode' does nothing under a GUI, and
+;; the hook also catches `emacsclient -nw' frames opened later.  It must be a
+;; named wrapper -- `xterm-mouse-mode' is a global minor mode, so putting the
+;; mode function itself on the hook would *toggle* it once per terminal frame.
+(defun dk/enable-tty-mouse ()
+  "Turn on `xterm-mouse-mode' for a terminal frame."
+  (xterm-mouse-mode 1))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Helpful helpers
 (defun dk/helpful-open (buf)

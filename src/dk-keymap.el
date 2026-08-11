@@ -11,7 +11,7 @@
 (global-set-key (kbd "M-/") #'comment-or-uncomment-region)
 (global-set-key (kbd "C-c t") #'consult-theme)
 (global-set-key (kbd "S-<return>") (kbd "C-e C-m"))
-(global-set-key (kbd "C-=") #'er/expand-region)
+;; C-= (er/expand-region) is bound from its own `use-package' in dk-defaults.el.
 (global-set-key (kbd "M-u") #'upcase-dwim)
 (global-set-key (kbd "M-l") #'downcase-dwim)
 (global-set-key (kbd "M-c") #'capitalize-dwim)

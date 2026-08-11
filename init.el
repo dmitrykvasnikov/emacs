@@ -6,6 +6,11 @@
 (setq-default user-full-name "Dmitry Kvasnikov"
               user-mail-address "dmitry.kvasnikov@gmail.com")
 
+;; Must be exactly this: a literal string, in a setq of its own, in this file.
+;; `display-startup-echo-area-message' regexp-scans `user-init-file' for that
+;; shape -- see the note in early-init.el.
+(setq inhibit-startup-echo-area-message "dmitry")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Load paths -- `dk/add-paths-to-list' and `dk/add-to-confdir' come from
 ;; early-init.el, which is the only place they can live: they run before this

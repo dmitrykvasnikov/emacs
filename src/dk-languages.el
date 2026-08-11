@@ -108,13 +108,12 @@ buffers already open."
   (rustic-format-on-save nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Go -- go-ts-mode is built in but ships no `auto-mode-alist' entry, so the
-;; go-mode package stays purely to map .go (and for godoc and friends); the
-;; remap in dk-treesit.el turns the result into go-ts-mode.  go.mod would
-;; otherwise open in `m2-mode', which dk-treesit.el also fixes.
-(use-package go-mode
-  :mode "\\.go\\'")
-
+;; Go -- go-ts-mode is built in but ships no `auto-mode-alist' entry, so
+;; dk-treesit.el adds one pointing straight at it.  The go-mode package used to
+;; be installed for that single entry and nothing else: with .go mapped to
+;; go-mode and go-mode remapped to go-ts-mode, `set-auto-mode' resolved the
+;; remap before dispatching and the package was never actually loaded.  go.mod
+;; would otherwise open in `m2-mode', which dk-treesit.el also fixes.
 (use-package go-ts-mode
   :ensure nil                           ; built-in
   :defer t

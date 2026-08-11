@@ -25,8 +25,13 @@
 (setq load-prefer-newer t)              ; never load a stale .elc
 (setq site-run-file nil)
 (setq frame-inhibit-implied-resize t)   ; no resize per font/UI change
-(setq inhibit-startup-message t
-      inhibit-startup-echo-area-message user-login-name)
+(setq inhibit-startup-message t)
+;; `inhibit-startup-echo-area-message' is deliberately NOT set here.  It only
+;; takes effect if it was set through Custom, or if `startup.el' can find a
+;; literal `(setq inhibit-startup-echo-area-message "<login>")' by scanning
+;; `user-init-file' as text -- see `display-startup-echo-area-message'.  A
+;; variable reference, and any setting made from early-init.el, fails both
+;; tests.  It lives in init.el instead.
 (setq native-comp-async-report-warnings-errors 'silent)
 (setq package-quickstart t)             ; big win with ~60 packages
 

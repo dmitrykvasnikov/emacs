@@ -33,9 +33,10 @@
          (haskell-ts-mode . eglot-ensure)
          (c-ts-mode       . eglot-ensure)
          (c++-ts-mode     . eglot-ensure)
-         (go-ts-mode      . eglot-ensure)
          ;; rust is started by rustic, see dk-languages.el
-         (prog-mode       . eldoc-mode))
+         (go-ts-mode      . eglot-ensure))
+  ;; No (prog-mode . eldoc-mode) here: `global-eldoc-mode' is on by default in
+  ;; Emacs 30, so that hook was re-enabling a mode that was already on.
   :config
   (setq eglot-events-buffer-config '(:size 0))
   (setq eglot-extend-to-xref t)         ; start eglot for cross-referenced files

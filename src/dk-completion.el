@@ -64,8 +64,14 @@
          ("C-x C-r" . consult-recent-file)
          ("C-c ?"   . consult-flymake)
          ("C-c m"   . consult-mode-command)
-         ("C-r"     . consult-history)       ;; minibuffer / comint history
-         ("M-y"     . consult-yank-pop))
+         ("M-y"     . consult-yank-pop)
+         ;; `consult-history' is only meaningful where there *is* a history.
+         ;; Bound globally it shadowed `isearch-backward' everywhere and, in an
+         ;; ordinary buffer, `consult--current-history' has no branch to take
+         ;; and signals an error.  `minibuffer-local-map' is the parent of every
+         ;; other minibuffer keymap, so this one entry covers all prompts.
+         :map minibuffer-local-map
+         ("C-r"     . consult-history))
   :custom
   (consult-preview-key 'any)              ;; preview while moving
   (consult-line-numbers-widen t)
@@ -74,6 +80,12 @@
   ;; `projectile-globally-ignored-buffers' before; project.el has no
   ;; equivalent, and consult is what actually lists buffers here.
   (add-to-list 'consult-buffer-filter "\\`EGLOT"))
+
+;; The other half of the C-r story: shells and REPLs keep a real history too.
+;; Kept outside the `use-package' above because that block only runs once consult
+;; loads, which may well be after the first comint buffer already exists.
+(with-eval-after-load 'comint
+  (keymap-set comint-mode-map "C-r" #'consult-history))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Act on the thing at point / on candidates
@@ -117,8 +129,12 @@
 
 (use-package cape
   :init
-  (add-hook 'completion-at-point-functions #'cape-file)
-  (add-hook 'completion-at-point-functions #'cape-dabbrev)
+  ;; Depths, not plain `add-hook' calls: `add-hook' prepends, so listing
+  ;; cape-file first and cape-dabbrev second produced (cape-dabbrev cape-file)
+  ;; -- and cape-dabbrev matches the trailing word of a path and answers first,
+  ;; which meant file completion almost never fired.
+  (add-hook 'completion-at-point-functions #'cape-file -10)
+  (add-hook 'completion-at-point-functions #'cape-dabbrev -5)
   :custom (cape-dabbrev-min-length 3))
 
 ;; Kind of each candidate (function, variable, class, ...) in the corfu margin,

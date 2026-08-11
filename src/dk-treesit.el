@@ -100,7 +100,8 @@ is non-nil."
 ;; Extensions stock Emacs has no ts mapping for.  `add-to-list' prepends, so
 ;; these beat what is already there -- which is the point for go.mod (mapped
 ;; to `m2-mode', i.e. Modula-2) and CMakeLists.txt (mapped to `text-mode').
-(dolist (entry '(("/go\\.mod\\'"         . go-mod-ts-mode)
+(dolist (entry '(("\\.go\\'"             . go-ts-mode)
+                 ("/go\\.mod\\'"         . go-mod-ts-mode)
                  ("\\.ya?ml\\'"          . yaml-ts-mode)
                  ("CMakeLists\\.txt\\'"  . cmake-ts-mode)
                  ("\\.cmake\\'"          . cmake-ts-mode)

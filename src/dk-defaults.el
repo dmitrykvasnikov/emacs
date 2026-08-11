@@ -41,8 +41,10 @@
 (setq isearch-repeat-on-direction-change t)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Editing helpers
-(use-package expand-region)             ; C-= in keymap.el
+;; Editing helpers.  The binding lives here rather than in dk-keymap.el so that
+;; `:bind' can autoload the package instead of loading it at startup.
+(use-package expand-region
+  :bind ("C-=" . er/expand-region))
 
 (provide 'dk-defaults)
 ;;; dk-defaults.el ends here

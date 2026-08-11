@@ -14,8 +14,8 @@
 (set-fringe-mode 10)
 (blink-cursor-mode -1)
 (column-number-mode 1)
-(xterm-mouse-mode 1)                    ; mouse in the terminal
 (global-hl-line-mode 1)
+(add-hook 'tty-setup-hook #'dk/enable-tty-mouse) ; mouse in the terminal
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Point, scrolling and line wrapping

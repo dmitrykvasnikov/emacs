@@ -33,13 +33,13 @@
  '(linum                               ((t (:foreground "#383938"  :background "#272a2a" ))))
  '(fringe                              ((t (                       :background "#272a2a" ))))
 
- '(minibuffer-prompt                   ((t (:foreground "#1278A8"  :background nil       :weight bold                                  ))))
- '(escape-glyph                        ((t (:foreground "orange"   :background nil                                                     ))))
- '(highlight                           ((t (:foreground "orange"   :background nil                                                     ))))
- '(shadow                              ((t (:foreground "#777777"  :background nil                                                     ))))
+ '(minibuffer-prompt                   ((t (:foreground "#1278A8"  :background unspecified       :weight bold                                  ))))
+ '(escape-glyph                        ((t (:foreground "orange"   :background unspecified                                                     ))))
+ '(highlight                           ((t (:foreground "orange"   :background unspecified                                                     ))))
+ '(shadow                              ((t (:foreground "#777777"  :background unspecified                                                     ))))
 
  '(trailing-whitespace                 ((t (:foreground "#FFFFFF"  :background "#C74000"                                               ))))
- '(link                                ((t (:foreground "#00b7f0"  :background nil       :underline t                                  ))))
+ '(link                                ((t (:foreground "#00b7f0"  :background unspecified       :underline t                                  ))))
  '(link-visited                        ((t (:foreground "#4488cc"                        :underline t :inherit (link)                  ))))
  '(button                              ((t (:foreground "#FFFFFF"  :background "#444444" :underline t :inherit (link)                  ))))
  '(next-error                          ((t (                                             :inherit (region)                             ))))
@@ -70,12 +70,12 @@
  '(magit-item-highlight                ((t (:foreground "white" :background "#1278A8" :inherit nil ))))
 
  ;; flyspell-mode
- '(flyspell-incorrect                  ((t (:underline "#AA0000" :background nil :inherit nil ))))
- '(flyspell-duplicate                  ((t (:underline "#009945" :background nil :inherit nil ))))
+ '(flyspell-incorrect                  ((t (:underline "#AA0000" :background unspecified :inherit nil ))))
+ '(flyspell-duplicate                  ((t (:underline "#009945" :background unspecified :inherit nil ))))
 
  ;; flymake-mode
- '(flymake-errline                     ((t (:underline "#AA0000" :background nil :inherit nil ))))
- '(flymake-warnline                    ((t (:underline "#009945" :background nil :inherit nil ))))
+ '(flymake-errline                     ((t (:underline "#AA0000" :background unspecified :inherit nil ))))
+ '(flymake-warnline                    ((t (:underline "#009945" :background unspecified :inherit nil ))))
 
  ;;git-gutter
  '(git-gutter:added                    ((t (:foreground "#609f60" :bold t))))

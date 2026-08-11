@@ -93,7 +93,7 @@
    `(lazy-highlight ((t (:background ,color-light))))
    `(link ((t (:foreground ,color-dark-blue :underline t))))
    `(link-visited ((t (:foreground ,color-middle :underline t))))
-   `(button ((t (:background ,color-yellow :underline t :foreground nil))))
+   `(button ((t (:background ,color-yellow :underline t :foreground unspecified))))
    `(header-line ((t (:background ,color-ultralight
                       :foreground ,color-fg))))
    `(shadow ((t (:foreground ,color-light))))
@@ -105,7 +105,7 @@
    `(widget-field ((t (:background ,color-bad))))
 
    ;; Faces for specific prog modes
-   `(sh-heredoc ((t (:foreground nil :inherit font-lock-string-face))))
+   `(sh-heredoc ((t (:foreground unspecified :inherit font-lock-string-face))))
 
    ;; Dired
    `(dired-directory ((t (:foreground ,color-dark-blue))))
@@ -133,7 +133,7 @@
                                 :weight unspecified))))
    `(erc-input-face ((t (:foreground ,color-dark-yellow))))
    `(erc-prompt-face ((t (:foreground ,color-middle
-                          :background nil
+                          :background unspecified
                           :inherit italic
                           :weight unspecified))))
    `(erc-my-nick-face ((t (:foreground ,color-dark-yellow))))
@@ -150,8 +150,8 @@
    `(rainbow-delimiters-unmatched-face ((t (:foreground ,color-red))))
 
    ;; Magit
-   `(magit-branch-local ((t (:foreground ,color-dark-blue :background nil))))
-   `(magit-branch-remote ((t (:foreground ,color-dark-green :background nil))))
+   `(magit-branch-local ((t (:foreground ,color-dark-blue :background unspecified))))
+   `(magit-branch-remote ((t (:foreground ,color-dark-green :background unspecified))))
    `(magit-tag ((t (:foreground ,color-blue :background ,color-bg))))
    `(magit-hash ((t (:foreground ,color-bad))))
    `(magit-section-title ((t (:foreground ,color-dark-green :background ,color-bg))))
@@ -204,10 +204,10 @@
    `(sml/position-percentage ((t (:foreground ,color-dark-purple :slant normal))))
 
    ;; Helm
-   `(helm-candidate-number ((t (:foreground ,color-fg :background nil))))
+   `(helm-candidate-number ((t (:foreground ,color-fg :background unspecified))))
    `(helm-source-header ((t (:foreground ,color-bg :background ,color-blue
                                          :weight normal :inherit italic))))
-   `(helm-selection ((t (:inherit region :distant-foreground nil :background nil))))
+   `(helm-selection ((t (:inherit region :distant-foreground unspecified :background unspecified))))
    `(helm-prefarg ((t (:foreground ,color-dark-red))))
    `(helm-ff-directory ((t (:foreground ,color-dark-blue))))
    `(helm-ff-executable ((t (:foreground ,color-dark-green))))
@@ -215,11 +215,11 @@
                                   :background ,color-dark-yellow))))
    `(helm-ff-symlink ((t (:foreground ,color-dark-purple))))
    `(helm-ff-prefix ((t (:background ,color-yellow))))
-   `(helm-ff-dotted-directory ((t (:background nil :foreground ,color-light))))
+   `(helm-ff-dotted-directory ((t (:background unspecified :foreground ,color-light))))
    `(helm-M-x-key ((t (:foreground ,color-dark-green))))
    `(helm-buffer-file ((t (:foreground ,color-fg))))
    `(helm-buffer-archive ((t (:inherit helm-buffer-file))))
-   `(helm-buffer-directory ((t (:foreground ,color-dark-blue :background nil))))
+   `(helm-buffer-directory ((t (:foreground ,color-dark-blue :background unspecified))))
    `(helm-buffer-not-saved ((t (:foreground ,color-dark-red))))
    `(helm-buffer-modified ((t (:foreground ,color-red))))
    `(helm-buffer-process ((t (:foreground ,color-dark-green))))
@@ -268,12 +268,12 @@
    `(org-latex-and-related ((t (:foreground ,color-middle :italic t))))
    `(org-checkbox ((t (:weight normal :foreground ,color-bad))))
    `(org-verbatim ((t (:foreground ,color-middle))))
-   `(org-mode-line-clock ((t (:background nil))))
-   `(org-document-title ((t (:weight normal :foreground nil))))
+   `(org-mode-line-clock ((t (:background unspecified))))
+   `(org-document-title ((t (:weight normal :foreground unspecified))))
 
    ;; org-tree-slide
    `(org-tree-slide-header-overlay-face
-     ((t (:inherit font-lock-comment-face :foreground nil :background nil))))
+     ((t (:inherit font-lock-comment-face :foreground unspecified :background unspecified))))
 
    ;; Message
    `(message-header-name ((t (:foreground ,color-bad))))
@@ -302,10 +302,10 @@
 
    ;; Highlight-indent-guides
    `(highlight-indent-guides-odd-face ((t (:background ,color-ultralight))))
-   `(highlight-indent-guides-even-face ((t (:background nil))))
+   `(highlight-indent-guides-even-face ((t (:background unspecified))))
 
    ;; Telega
-   `(telega-msg-heading ((t (:background nil :foreground ,color-green :inherit nil))))
+   `(telega-msg-heading ((t (:background unspecified :foreground ,color-green :inherit nil))))
    `(telega-msg-inline-reply ((t (:foreground ,color-bad :inherit nil))))
    `(telega-entity-type-texturl ((t (:inherit nil :foreground ,color-blue))))
    ))

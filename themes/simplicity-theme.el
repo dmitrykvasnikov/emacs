@@ -174,10 +174,10 @@ defining them in this alist."
      ((t (:foreground ,simplicity-foreground))))
 ;;;;; Line number
    `(line-number
-     ((t (:background nil
+     ((t (:background unspecified
           :foreground ,simplicity-grey))))
    `(line-number-current-line
-     ((t (:background nil
+     ((t (:background unspecified
           :foreground ,simplicity-foreground))))
 ;;;;; Highlight region color
    `(region
@@ -515,7 +515,7 @@ defining them in this alist."
   (add-to-list 'custom-theme-load-path
                (file-name-as-directory (file-name-directory load-file-name)))
   (when (not window-system)
-    (custom-set-faces '(default ((t (:background nil)))))))
+    (custom-set-faces '(default ((t (:background unspecified)))))))
 
 (provide-theme 'simplicity)
 

@@ -220,7 +220,7 @@ Also bind `class' to ((class color) (min-colors 89))."
    `(ack-match ((t (:foreground ,darkburn-orange :background ,darkburn-bg-1 :weight bold))))
 ;;;;; auctex
    `(font-latex-bold-face ((t (:inherit bold))))
-   `(font-latex-warning-face ((t (:foreground nil :inherit font-lock-warning-face))))
+   `(font-latex-warning-face ((t (:foreground unspecified :inherit font-lock-warning-face))))
    `(font-latex-sectioning-5-face ((t (:foreground ,darkburn-red :weight bold ))))
    `(font-latex-sedate-face ((t (:foreground ,darkburn-yellow))))
    `(font-latex-italic-face ((t (:foreground ,darkburn-cyan :slant italic))))
@@ -290,7 +290,7 @@ Also bind `class' to ((class color) (min-colors 89))."
    `(context-coloring-level-8-face ((t :foreground ,darkburn-yellow-2)))
    `(context-coloring-level-9-face ((t :foreground ,darkburn-red+1)))
 ;;;;; coq
-   `(coq-solve-tactics-face ((t (:foreground nil :inherit font-lock-constant-face))))
+   `(coq-solve-tactics-face ((t (:foreground unspecified :inherit font-lock-constant-face))))
 ;;;;; ctable
    `(ctbl:face-cell-select ((t (:background ,darkburn-blue :foreground ,darkburn-bg))))
    `(ctbl:face-continue-bar ((t (:background ,darkburn-bg-05 :foreground ,darkburn-bg))))
@@ -538,8 +538,8 @@ Also bind `class' to ((class color) (min-colors 89))."
    `(helm-time-zone-current ((t (:foreground ,darkburn-green+2 :background ,darkburn-bg-15))))        ;; DB
    `(helm-time-zone-home ((t (:foreground ,darkburn-red :background ,darkburn-bg-15))))               ;; DB
    `(helm-bookmark-addressbook ((t (:foreground ,darkburn-orange :background ,darkburn-bg-15))))      ;; DB
-   `(helm-bookmark-directory ((t (:foreground nil :background nil :inherit helm-ff-directory))))
-   `(helm-bookmark-file ((t (:foreground nil :background nil :inherit helm-ff-file))))
+   `(helm-bookmark-directory ((t (:foreground unspecified :background unspecified :inherit helm-ff-directory))))
+   `(helm-bookmark-file ((t (:foreground unspecified :background unspecified :inherit helm-ff-file))))
    `(helm-bookmark-gnus ((t (:foreground ,darkburn-magenta :background ,darkburn-bg-15))))            ;; DB
    `(helm-bookmark-info ((t (:foreground ,darkburn-green+2 :background ,darkburn-bg-15))))            ;; DB
    `(helm-bookmark-man ((t (:foreground ,darkburn-yellow :background ,darkburn-bg-15))))              ;; DB
@@ -558,7 +558,7 @@ Also bind `class' to ((class color) (min-colors 89))."
    `(helm-grep-file ((t (:foreground ,darkburn-fg :background ,darkburn-bg-15))))                     ;; DB
    `(helm-grep-finish ((t (:foreground ,darkburn-green+2 :background ,darkburn-bg-15))))              ;; DB
    `(helm-grep-lineno ((t (:foreground ,darkburn-fg-1 :background ,darkburn-bg-15))))                 ;; DB
-   `(helm-grep-match ((t (:foreground nil :background nil :inherit helm-match))))
+   `(helm-grep-match ((t (:foreground unspecified :background unspecified :inherit helm-match))))
    `(helm-grep-running ((t (:foreground ,darkburn-red :background ,darkburn-bg-15))))                 ;; DB
    `(helm-match ((t (:foreground ,darkburn-orange :background ,darkburn-bg-1 :weight bold))))
    `(helm-moccur-buffer ((t (:foreground ,darkburn-cyan :background ,darkburn-bg-15))))               ;; DB
@@ -833,7 +833,7 @@ Also bind `class' to ((class color) (min-colors 89))."
    `(mu4e-replied-face ((t (:foreground ,darkburn-bg+3))))
    `(mu4e-trashed-face ((t (:foreground ,darkburn-bg+3 :strike-through t))))
 ;;;;; mumamo
-   `(mumamo-background-chunk-major ((t (:background nil))))
+   `(mumamo-background-chunk-major ((t (:background unspecified))))
    `(mumamo-background-chunk-submode1 ((t (:background ,darkburn-bg-1))))
    `(mumamo-background-chunk-submode2 ((t (:background ,darkburn-bg+2))))
    `(mumamo-background-chunk-submode3 ((t (:background ,darkburn-bg+3))))
@@ -919,7 +919,7 @@ Also bind `class' to ((class color) (min-colors 89))."
    `(proof-boring-face ((t (:foreground ,darkburn-fg :background ,darkburn-bg+2))))
    `(proof-command-mouse-highlight-face ((t (:inherit proof-mouse-highlight-face))))
    `(proof-debug-message-face ((t (:inherit proof-boring-face))))
-   `(proof-declaration-name-face ((t (:inherit font-lock-keyword-face :foreground nil))))
+   `(proof-declaration-name-face ((t (:inherit font-lock-keyword-face :foreground unspecified))))
    `(proof-eager-annotation-face ((t (:foreground ,darkburn-bg :background ,darkburn-orange))))
    `(proof-error-face ((t (:foreground ,darkburn-fg :background ,darkburn-red-4))))
    `(proof-highlight-dependency-face ((t (:foreground ,darkburn-bg :background ,darkburn-yellow-1))))
@@ -929,8 +929,8 @@ Also bind `class' to ((class color) (min-colors 89))."
    `(proof-queue-face ((t (:background ,darkburn-red-4))))
    `(proof-region-mouse-highlight-face ((t (:inherit proof-mouse-highlight-face))))
    `(proof-script-highlight-error-face ((t (:background ,darkburn-red-2))))
-   `(proof-tacticals-name-face ((t (:inherit font-lock-constant-face :foreground nil :background ,darkburn-bg-15))))   ;; DB
-   `(proof-tactics-name-face ((t (:inherit font-lock-constant-face :foreground nil :background ,darkburn-bg-15))))     ;; DB
+   `(proof-tacticals-name-face ((t (:inherit font-lock-constant-face :foreground unspecified :background ,darkburn-bg-15))))   ;; DB
+   `(proof-tactics-name-face ((t (:inherit font-lock-constant-face :foreground unspecified :background ,darkburn-bg-15))))     ;; DB
    `(proof-warning-face ((t (:foreground ,darkburn-bg :background ,darkburn-yellow-1))))
 ;;;;; racket-mode
    `(racket-keyword-argument-face ((t (:inherit font-lock-constant-face))))

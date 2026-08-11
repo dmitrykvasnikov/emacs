@@ -70,7 +70,7 @@
    `(lazy-highlight ((t (:background ,color-bright))))
    `(link ((t (:foreground ,color-dark :underline t))))
    `(link-visited ((t (:foreground ,color-middle :underline t))))
-   `(button ((t (:background ,color-bright :underline t :foreground nil))))
+   `(button ((t (:background ,color-bright :underline t :foreground unspecified))))
    `(header-line ((t (:background ,color-light :foreground ,color-fg))))
    `(shadow ((t (:foreground ,color-middle))))
    `(show-paren-match ((t (:background ,color-dark :foreground ,color-bg))))
@@ -81,7 +81,7 @@
    `(widget-field ((t (:background ,color-bright))))
 
    ;; Faces for specific prog modes
-   `(sh-heredoc ((t (:foreground nil :inherit font-lock-string-face))))
+   `(sh-heredoc ((t (:foreground unspecified :inherit font-lock-string-face))))
 
    ;; Dired
    `(dired-directory ((t (:foreground ,color-dark))))
@@ -108,7 +108,7 @@
                                 :weight unspecified))))
    `(erc-input-face ((t (:foreground ,color-dark))))
    `(erc-prompt-face ((t (:foreground ,color-middle
-                          :background nil
+                          :background unspecified
                           :inherit italic
                           :weight unspecified))))
    `(erc-my-nick-face ((t (:foreground ,color-black))))
@@ -125,13 +125,13 @@
    `(rainbow-delimiters-unmatched-face ((t (:background ,color-bright))))
 
    ;; Magit
-   `(magit-branch-local ((t (:foreground ,color-dark :background nil))))
-   `(magit-branch-remote ((t (:foreground ,color-dark :background nil))))
-   `(magit-tag ((t (:foreground ,color-dark :background nil :inherit italic))))
+   `(magit-branch-local ((t (:foreground ,color-dark :background unspecified))))
+   `(magit-branch-remote ((t (:foreground ,color-dark :background unspecified))))
+   `(magit-tag ((t (:foreground ,color-dark :background unspecified :inherit italic))))
    `(magit-hash ((t (:foreground ,color-middle))))
-   `(magit-section-title ((t (:foreground ,color-fg :background nil))))
-   `(magit-section-heading ((t (:background nil :foreground ,color-fg))))
-   `(magit-section-highlight ((t (:background nil))))
+   `(magit-section-title ((t (:foreground ,color-fg :background unspecified))))
+   `(magit-section-heading ((t (:background unspecified :foreground ,color-fg))))
+   `(magit-section-highlight ((t (:background unspecified))))
    `(magit-item-highlight ((t (:foreground ,color-fg
                                :background ,color-bright))))
    `(magit-log-author ((t (:foreground ,color-dark))))
@@ -156,8 +156,8 @@
    `(git-gutter-fr:deleted ((t (:foreground ,color-dark))))
 
    ;; Company
-   `(company-preview ((t (:foreground ,color-fg :background nil))))
-   `(company-preview-common ((t (:foreground ,color-fg :background nil))))
+   `(company-preview ((t (:foreground ,color-fg :background unspecified))))
+   `(company-preview-common ((t (:foreground ,color-fg :background unspecified))))
    `(company-tooltip ((t (:foreground ,color-fg :background ,color-bright))))
    `(company-tooltip-common ((t (:foreground ,color-middle))))
    `(company-tooltip-selection ((t (:background ,color-bg))))
@@ -187,25 +187,25 @@
    `(sml/position-percentage ((t (:foreground ,color-bg :slant normal))))
 
    ;; Helm
-   `(helm-candidate-number ((t (:foreground ,color-fg :background nil))))
+   `(helm-candidate-number ((t (:foreground ,color-fg :background unspecified))))
    `(helm-source-header ((t (:inherit font-lock-comment-face
                              :background unspecified :foreground unspecified))))
-   `(helm-selection ((t (:inherit region :distant-foreground nil
-                         :background nil))))
+   `(helm-selection ((t (:inherit region :distant-foreground unspecified
+                         :background unspecified))))
    `(helm-prefarg ((t (:foreground ,color-dark))))
    `(helm-ff-file ((t (:inherit default))))
    `(helm-ff-directory ((t (:inherit dired-directory :foreground unspecified))))
    `(helm-ff-executable ((t (:foreground unspecified))))
-   `(helm-ff-file-extension ((t (:foreground nil :background nil))))
+   `(helm-ff-file-extension ((t (:foreground unspecified :background unspecified))))
    `(helm-ff-invalid-symlink ((t (:inherit dired-symlink :foreground unspecified
                                   :background ,color-bright))))
    `(helm-ff-symlink ((t (:inherit dired-symlink :foreground unspecified))))
-   `(helm-ff-prefix ((t (:background nil))))
-   `(helm-ff-dotted-directory ((t (:background nil :foreground ,color-light))))
+   `(helm-ff-prefix ((t (:background unspecified))))
+   `(helm-ff-dotted-directory ((t (:background unspecified :foreground ,color-light))))
    `(helm-M-x-key ((t (:foreground ,color-middle))))
    `(helm-buffer-file ((t (:foreground ,color-fg))))
    `(helm-buffer-archive ((t (:inherit helm-buffer-file))))
-   `(helm-buffer-directory ((t (:foreground ,color-dark :background nil))))
+   `(helm-buffer-directory ((t (:foreground ,color-dark :background unspecified))))
    `(helm-buffer-not-saved
      ((t (:inherit helm-buffer-file :foreground unspecified
           :background ,color-bright))))
@@ -224,7 +224,7 @@
    `(markup-meta-hide-face ((t (:height 1.0 :foreground ,color-middle))))
    `(markup-meta-face ((t (:height 1.0 :foreground ,color-dark :family nil))))
    `(markup-reference-face ((t (:underline nil :foreground ,color-dark))))
-   `(markup-gen-face ((t (:inherit default :foreground nil))))
+   `(markup-gen-face ((t (:inherit default :foreground unspecified))))
    `(markup-passthrough-face ((t (:inherit markup-dark))))
    `(markup-replacement-face ((t (:family nil :foreground ,color-dark))))
    `(markup-list-face ((t (:weight bold))))
@@ -242,14 +242,14 @@
    `(markup-title-5-face ((t (:height 1.0 :inherit markup-gen-face))))
 
    ;; Outline
-   `(outline-1 ((t (:height 1.44 :foreground nil))))
-   `(outline-2 ((t (:height 1.2 :foreground nil))))
-   `(outline-3 ((t (:foreground nil))))
-   `(outline-4 ((t (:foreground nil))))
-   `(outline-5 ((t (:foreground nil))))
-   `(outline-6 ((t (:foreground nil))))
-   `(outline-7 ((t (:foreground nil))))
-   `(outline-8 ((t (:foreground nil))))
+   `(outline-1 ((t (:height 1.44 :foreground unspecified))))
+   `(outline-2 ((t (:height 1.2 :foreground unspecified))))
+   `(outline-3 ((t (:foreground unspecified))))
+   `(outline-4 ((t (:foreground unspecified))))
+   `(outline-5 ((t (:foreground unspecified))))
+   `(outline-6 ((t (:foreground unspecified))))
+   `(outline-7 ((t (:foreground unspecified))))
+   `(outline-8 ((t (:foreground unspecified))))
 
    ;; Org-mode
    `(org-hide ((t (:foreground ,color-bg))))
@@ -257,12 +257,12 @@
    `(org-code ((t (:foreground ,color-dark))))
    `(org-date ((t (:foreground ,color-middle))))
    `(org-done ((t (:weight normal :foreground ,color-middle))))
-   `(org-todo ((t (:weight normal :foreground nil :background ,color-bright))))
+   `(org-todo ((t (:weight normal :foreground unspecified :background ,color-bright))))
    `(org-latex-and-related ((t (:foreground ,color-dark :italic t))))
    `(org-checkbox ((t (:weight normal :foreground ,color-middle))))
    `(org-verbatim ((t (:foreground ,color-dark))))
-   `(org-mode-line-clock ((t (:background nil))))
-   `(org-document-title ((t (:weight normal :foreground nil))))
+   `(org-mode-line-clock ((t (:background unspecified))))
+   `(org-document-title ((t (:weight normal :foreground unspecified))))
    `(org-drawer ((t (:foreground ,color-middle))))
    `(org-block ((t (:foreground ,color-dark))))
    `(org-block-begin-line ((t (:inherit font-lock-comment-face))))
@@ -272,15 +272,15 @@
 
    `(org-agenda-structure ((t (:foreground ,color-dark))))
    `(org-agenda-done ((t (:foreground ,color-middle))))
-   `(org-scheduled-today ((t (:foreground nil :inherit default))))
-   `(org-scheduled-previously ((t (:foreground nil :inherit italic))))
+   `(org-scheduled-today ((t (:foreground unspecified :inherit default))))
+   `(org-scheduled-previously ((t (:foreground unspecified :inherit italic))))
    `(org-upcoming-deadline ((t (:foreground ,color-dark :inherit italic))))
-   `(org-scheduled ((t (:foreground nil :inherit org-scheduled-today))))
+   `(org-scheduled ((t (:foreground unspecified :inherit org-scheduled-today))))
    `(org-time-grid ((t (:foreground ,color-middle))))
 
    ;; org-tree-slide
    `(org-tree-slide-header-overlay-face
-     ((t (:inherit font-lock-comment-face :foreground nil :background nil))))
+     ((t (:inherit font-lock-comment-face :foreground unspecified :background unspecified))))
 
    ;; Message
    `(message-header-name ((t (:foreground ,color-dark))))
@@ -311,16 +311,16 @@
 
    ;; Highlight-indent-guides
    `(highlight-indent-guides-odd-face ((t (:background ,color-bright))))
-   `(highlight-indent-guides-even-face ((t (:background nil))))
+   `(highlight-indent-guides-even-face ((t (:background unspecified))))
 
    ;; Telega
-   `(telega-msg-heading ((t (:background nil :foreground ,color-dark
+   `(telega-msg-heading ((t (:background unspecified :foreground ,color-dark
                              :inherit nil))))
    `(telega-msg-inline-reply ((t (:foreground ,color-middle :inherit nil))))
    `(telega-entity-type-texturl ((t (:inherit nil :foreground ,color-dark))))
 
    ;; Beancount
-   `(beancount-date ((t (:inherit italic :foreground nil))))
+   `(beancount-date ((t (:inherit italic :foreground unspecified))))
    `(beancount-account ((t (:inherit default))))
 
    ;; LSP

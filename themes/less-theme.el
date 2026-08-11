@@ -74,9 +74,9 @@ by `color-theme-late-night' and the Less is More theme for vim.")
  '(show-paren-mismatch-face ((t (:foreground "black" :background "red"))))
 
  ;; Line highlighting
- '(highlight ((t (:background "#1f1f1f" :foreground nil))))
- '(highlight-current-line-face ((t (:background "#1f1f1f" :foreground nil))))
- '(hl-line ((t (:background "#1f1f1f" :foreground nil))))
+ '(highlight ((t (:background "#1f1f1f" :foreground unspecified))))
+ '(highlight-current-line-face ((t (:background "#1f1f1f" :foreground unspecified))))
+ '(hl-line ((t (:background "#1f1f1f" :foreground unspecified))))
 
  ;; Buttons
  '(button ((t (:bold t))))

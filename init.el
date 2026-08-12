@@ -63,19 +63,14 @@
     "dk-keymap")
   "Configuration modules in src/, loaded in this order.")
 
-(defun dk/load-modules (modules)
-  "Load each of MODULES from src/.
-A module that fails is reported and skipped, so one broken file cannot
-leave Emacs half-configured without saying why."
-  (dolist (module modules)
-    (let ((file (dk/add-to-confdir (concat "src/" module))))
-      (condition-case err
-          (load file nil t)
-        (error
-         (message "Config: error loading %s -- %s"
-                  module (error-message-string err)))))))
-
-(dk/load-modules dk/modules)
+;; A module that fails is reported and skipped, so one broken file cannot
+;; leave Emacs half-configured without saying why.
+(dolist (module dk/modules)
+  (condition-case err
+      (load (dk/add-to-confdir (concat "src/" module)) nil t)
+    (error
+     (message "Config: error loading %s -- %s"
+              module (error-message-string err)))))
 
 (provide 'init)
 ;;; init.el ends here

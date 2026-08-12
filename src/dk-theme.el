@@ -5,6 +5,8 @@
 ;; Loaded last: `dk/sync-orderless' recolours orderless faces from the theme,
 ;; so both orderless and the theme must already be there.
 
+;; Load any theme without the "this theme may run arbitrary code, mark it safe?"
+;; prompt.  Themes here come from ELPA and themes/, all of them known.
 (setq custom-safe-themes t)
 
 ;; `:defer t' throughout.  A theme package does not need to be *loaded* for

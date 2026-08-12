@@ -7,14 +7,19 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Display in code buffers
+;; Line numbers in code buffers only -- prose and special buffers stay clean.
 (use-package display-line-numbers
   :ensure nil                           ; built-in
   :hook prog-mode
   :custom
+  ;; Distance from the current line rather than absolute numbers, so a motion
+  ;; like M-8 C-n can be read straight off the margin.  The current line still
+  ;; shows its own absolute number.
   (display-line-numbers-type 'relative)
-  (display-line-numbers-width 3)
-  (display-line-numbers-grow-only t))
+  (display-line-numbers-width 3)        ; reserve 3 columns, so the text doesn't shift
+  (display-line-numbers-grow-only t))   ; ...and never shrink the margin back
 
+;; Nested brackets coloured by depth, which is how a missing paren gets spotted.
 (use-package rainbow-delimiters
   :hook (prog-mode . rainbow-delimiters-mode))
 
@@ -38,8 +43,13 @@
   ;; No (prog-mode . eldoc-mode) here: `global-eldoc-mode' is on by default in
   ;; Emacs 30, so that hook was re-enabling a mode that was already on.
   :config
+  ;; Stop logging every JSON message to *EGLOT events*.  That buffer is a
+  ;; debugging aid only, and keeping it costs memory in a long session.  Set a
+  ;; size back if a server ever needs to be debugged.
   (setq eglot-events-buffer-config '(:size 0))
-  (setq eglot-extend-to-xref t)         ; start eglot for cross-referenced files
+  ;; Keep the server managing a file reached by M-. that lies outside the
+  ;; project (a dependency's source), instead of opening it unmanaged.
+  (setq eglot-extend-to-xref t)
   ;; Haskell servers wrap their docs in ```haskell fences; strip them so the
   ;; eldoc buffer shows plain text.
   (advice-add 'eglot--format-markup
@@ -49,15 +59,21 @@
 ;; set here before, but neither exists in the eglot shipped with Emacs 30.2 —
 ;; they were setting variables nothing ever reads.  Re-add on Emacs 31+.
 
+;; Code navigation.  These are the stock bindings, restated so they are not
+;; quietly taken over by a package -- with eglot running they are answered by
+;; the language server, and fall back to etags/elisp elsewhere.
 (use-package xref
   :ensure nil                           ; built-in
   :bind (("M-."   . xref-find-definitions)
          ("M-?"   . xref-find-references)
-         ("M-,"   . xref-go-back)
-         ("C-M-." . xref-find-apropos)))
+         ("M-,"   . xref-go-back)         ; back to where M-. was pressed
+         ("C-M-." . xref-find-apropos)))  ; definitions matching a pattern
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Diagnostics
+;; On-the-fly diagnostics.  eglot registers itself as a flymake backend, so in
+;; an LSP buffer these are the server's errors; elsewhere it is whatever backend
+;; the mode provides (elisp byte-compile, shellcheck, ...).
 (use-package flymake
   :ensure nil                           ; built-in
   :hook (prog-mode . flymake-mode)
@@ -66,10 +82,13 @@
               ("M-p" . flymake-goto-prev-error))
   :config
   (setq flymake-no-changes-timeout 0.5) ; recheck after 0.5s idle
-  (setq flymake-start-on-flymake-mode t)
-  (setq flymake-start-on-save-buffer t)
+  (setq flymake-start-on-flymake-mode t) ; check immediately, don't wait for an edit
+  (setq flymake-start-on-save-buffer t)  ; and again on every save
 
-  ;; Show error diagnostics in the fringe
+  ;; Diagnostics are marked in the left fringe.  The bitmaps below replace the
+  ;; stock arrow/dot glyphs with plain vertical bars of decreasing width:
+  ;; 3px for an error, 2px for a warning, 1px for a note.  Each bitmap is one
+  ;; row and '(center repeated) tiles it down the height of the line.
   (setq flymake-fringe-indicator-position 'left-fringe)
   (define-fringe-bitmap 'flymake-error-indicator
     [#b11100000] nil nil '(center repeated))

@@ -40,16 +40,18 @@
          ;; haskell-doc-mode fights with eglot/eldoc over the echo area
          (haskell-mode . dk/haskell-disable-doc-mode))
   :bind (:map haskell-mode-map
-              ("C-c C-l" . haskell-process-load-file)
-              ("C-c C-z" . haskell-interactive-switch)
-              ("C-c C-t" . haskell-mode-show-type-at))
+              ("C-c C-l" . haskell-process-load-file)    ; load this file into the repl
+              ("C-c C-z" . haskell-interactive-switch)   ; jump to the repl buffer
+              ("C-c C-t" . haskell-mode-show-type-at))   ; type of the thing at point
+  ;; Start the repl as `cabal repl' rather than a bare ghci, so the project's
+  ;; dependencies and extensions are in scope.
   :custom (haskell-process-type 'cabal-repl))
 
 (use-package haskell-ts-mode
   :defer t
   :custom
   (haskell-ts-use-indent t)             ; nil upstream -- no indent rules at all
-  (haskell-ts-font-lock-level 4)
+  (haskell-ts-font-lock-level 4)        ; every feature the grammar defines
   :bind (:map haskell-ts-mode-map
               ;; Mirror the haskell-mode keys above where an equivalent exists.
               ;; This mode drives a bare ghci, not a cabal repl.
@@ -102,6 +104,7 @@ buffers already open."
   :mode ("\\.rs\\'" . rustic-mode)
   :hook (rustic-mode . eglot-ensure)
   :custom
+  ;; rustic would otherwise start lsp-mode, which is not installed here.
   (rustic-lsp-client 'eglot)
   ;; Formatting is apheleia's job (rust-ts-mode -> rustfmt).  Leaving this on
   ;; ran rustfmt twice per save.
@@ -117,6 +120,8 @@ buffers already open."
 (use-package go-ts-mode
   :ensure nil                           ; built-in
   :defer t
+  ;; Go indents with tabs; this is how wide one is displayed, 4 instead of the
+  ;; default 8.  It does not change what gofmt writes to the file.
   :custom (go-ts-mode-indent-offset 4))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -126,8 +131,14 @@ buffers already open."
 (use-package c-ts-mode
   :ensure nil                           ; built-in
   :defer t
+  ;; Indentation step for both c-ts-mode and c++-ts-mode.  The overall style
+  ;; (brace placement and the rest) comes from `c-ts-mode-set-style'; only the
+  ;; width is overridden here.
   :custom (c-ts-mode-indent-offset 4))
 
+;; Not used for format-on-save -- apheleia calls the clang-format binary itself.
+;; This is kept for the interactive commands (`clang-format-buffer',
+;; `clang-format-region'), which is why it is never demand-loaded.
 (use-package clang-format
   :defer t)
 

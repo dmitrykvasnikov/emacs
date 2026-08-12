@@ -2,7 +2,8 @@
 ;;; init.el --- Entry point: load paths, custom file, module list
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; User settings
+;; User identity.  Read by anything that has to sign work as coming from a
+;; person: magit/VC commit authorship, message-mode, org export, gnus.
 ;; `setq', not `setq-default': neither of these is ever buffer-local.
 (setq user-full-name "Dmitry Kvasnikov"
       user-mail-address "dmitry.kvasnikov@gmail.com")
@@ -19,7 +20,11 @@
 (dk/add-paths-to-list 'load-path '("src") t)
 (dk/add-paths-to-list 'custom-theme-load-path '("themes/") t)
 
-;; Keep the customize interface out of this file
+;; Keep the customize interface out of this file: anything set through `M-x
+;; customize' is written to custom.el instead of being appended here.  That file
+;; is git-ignored, and package.el also maintains `package-selected-packages' in
+;; it.  Loading it has to happen before the modules, so a customised value is in
+;; place by the time a module reads it.
 (setopt custom-file (locate-user-emacs-file "custom.el"))
 (when (file-exists-p custom-file)
   (load custom-file nil t))

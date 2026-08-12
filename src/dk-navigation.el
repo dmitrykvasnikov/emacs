@@ -2,11 +2,14 @@
 
 ;;; Moving around: files, directories, projects
 
+;; The list of recently visited files, persisted across sessions.  It is what
+;; backs `consult-recent-file' (C-x C-r) and the recent-file section of
+;; `consult-buffer'.
 (use-package recentf
   :ensure nil                           ; built-in
   :custom
-  (recentf-max-menu-items 15)
-  (recentf-max-saved-items 300)
+  (recentf-max-menu-items 15)           ; entries shown in the File menu
+  (recentf-max-saved-items 300)         ; entries kept in the file on disk
   :init (recentf-mode))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -14,17 +17,26 @@
 (use-package dired
   :ensure nil                           ; built-in
   :commands (dired dired-jump)
-  :bind (("C-x C-j" . dired-jump))
+  :bind (("C-x C-j" . dired-jump))      ; open dired on the current file's directory
   :config
+  ;; Flags handed to ls(1): -a all files, -g like -l but without the owner
+  ;; column, -h human-readable sizes, -o without the group column.
   (setq dired-listing-switches "-agho --group-directories-first"
+        ;; Recurse into directories on C/D without asking "recursive?" each time.
         dired-recursive-copies 'always
         dired-recursive-deletes 'always
+        ;; With two dired windows open, the other one's directory is the default
+        ;; target for copy and rename -- a two-pane file manager.
         dired-dwim-target t
+        ;; Entering a subdirectory reuses the window's buffer instead of
+        ;; leaving one dired buffer behind per directory visited.
         dired-kill-when-opening-new-dired-buffer t))
 
+;; Colour dired listings by file type, permissions, size and date.
 (use-package diredfl
   :hook (dired-mode . diredfl-mode))
 
+;; File-type icons in the listing, from the same nerd-icons set as the modeline.
 (use-package nerd-icons-dired
   :hook (dired-mode . nerd-icons-dired-mode))
 
@@ -45,6 +57,9 @@
   ;; root, which is what you want in a cabal or cargo workspace.
   (project-vc-extra-root-markers '("*.cabal" "stack.yaml" "Cargo.toml"
                                    "go.mod" "compile_commands.json"))
+  ;; Where the list of known projects is persisted (default: ~/.emacs.d/projects
+  ;; anyway, but named explicitly so it is obvious which file to delete when the
+  ;; list goes stale).
   (project-list-file (expand-file-name "projects" user-emacs-directory))
   ;; Menu offered right after `project-switch-project'.
   (project-switch-commands '((project-find-file      "Find file")
@@ -52,6 +67,8 @@
                              (project-find-dir       "Find dir")
                              (consult-ripgrep        "Ripgrep")
                              (magit-project-status   "Magit")))
+  ;; Replace two project.el commands under C-x p with their consult versions,
+  ;; which get preview and orderless filtering: C-x p b and C-x p g.
   :bind (:map project-prefix-map
               ("b" . consult-project-buffer)
               ("g" . consult-ripgrep))

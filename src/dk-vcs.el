@@ -3,8 +3,12 @@
 ;;; Version control
 
 (use-package magit
-  :bind (("C-x g" . magit-status)
+  :bind (("C-x g" . magit-status)          ; the main git interface for the repo
+         ;; Commands scoped to the file being edited: blame, log, stage this
+         ;; hunk, checkout this file.
          ("C-c g" . magit-file-dispatch))
+  ;; Word-level highlighting inside every diff hunk, not just the one point is
+  ;; on -- makes a one-character change in a long line visible at a glance.
   :custom (magit-diff-refine-hunk 'all))
 
 ;; Fringe git indicators.  `set-fringe-mode' (dk-ui.el) leaves room for them;

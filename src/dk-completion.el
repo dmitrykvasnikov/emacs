@@ -11,14 +11,18 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Minibuffer UI
+;; Vertical candidate list in the minibuffer, in place of the stock
+;; *Completions* window.
 (use-package vertico
   :init (vertico-mode)
   :custom
-  (vertico-count 15)
-  (vertico-cycle t)
-  (vertico-resize nil)
-  (vertico-scroll-margin 7))
+  (vertico-count 15)                    ; at most 15 candidates on screen
+  (vertico-cycle t)                     ; past the last candidate, back to the first
+  (vertico-resize nil)                  ; keep the list a fixed height, no jumping
+  (vertico-scroll-margin 7))            ; start scrolling 7 candidates from the edge
 
+;; Path editing in file prompts: RET on a directory descends into it instead of
+;; ending the prompt.  Ships with vertico, hence `:ensure nil'.
 (use-package vertico-directory
   :ensure nil
   :after vertico
@@ -32,6 +36,7 @@
               ;; Up one directory in file prompts; plain word kill everywhere else
               ("M-DEL" . vertico-directory-delete-word)))
 
+;; Per-category vertico settings.  Also ships with vertico.
 (use-package vertico-multiform
   :ensure nil
   :after vertico
@@ -44,27 +49,40 @@
   :config
   (vertico-multiform-mode 1))
 
+;; Space-separated matching: "fi buf" finds `find-file-other-buffer' in any
+;; order, no need to remember where the words sit in the name.
 (use-package orderless
   :custom
+  ;; orderless first, `basic' behind it as the fallback that still does exact
+  ;; prefix matching -- which is what TRAMP and a few other back-ends rely on.
   (completion-styles '(orderless basic))
+  ;; File names are the exception: `partial-completion' is what expands
+  ;; /u/s/l into /usr/share/lib, and orderless would ignore the separators.
   (completion-category-overrides '((file (styles partial-completion))))
+  ;; Let `partial-completion' match in the middle of a component too, so "log"
+  ;; finds "catalog.txt" and not just files starting with "log".
   (completion-pcm-leading-wildcard t))
 
+;; Annotations in the right margin of the candidate list: a command's key
+;; binding, a variable's value, a file's size and mode.
 (use-package marginalia
   :after vertico
   :init (marginalia-mode))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Consult commands
+;;
+;; Live-previewing replacements for the built-in commands: each one feeds a
+;; completing-read, so vertico/orderless/marginalia apply to all of them.
 (use-package consult
-  :bind (("C-x b"   . consult-buffer)
+  :bind (("C-x b"   . consult-buffer)          ;; buffers + recent files + bookmarks
          ("C-x 4 b" . consult-buffer-other-window)
-         ("C-c C-f" . consult-find)
-         ("C-s"     . consult-line)          ;; search line in buffer
+         ("C-c C-f" . consult-find)            ;; find(1) under a directory
+         ("C-s"     . consult-line)            ;; search lines in this buffer
          ("C-x C-r" . consult-recent-file)
-         ("C-c ?"   . consult-flymake)
-         ("C-c m"   . consult-mode-command)
-         ("M-y"     . consult-yank-pop)
+         ("C-c ?"   . consult-flymake)         ;; jump through the diagnostics
+         ("C-c m"   . consult-mode-command)    ;; only the current mode's commands
+         ("M-y"     . consult-yank-pop)        ;; pick from the kill ring by preview
          ;; `consult-history' is only meaningful where there *is* a history.
          ;; Bound globally it shadowed `isearch-backward' everywhere and, in an
          ;; ordinary buffer, `consult--current-history' has no branch to take
@@ -73,7 +91,11 @@
          :map minibuffer-local-map
          ("C-r"     . consult-history))
   :custom
-  (consult-preview-key 'any)              ;; preview while moving
+  ;; Preview on any key that moves the selection, rather than only on an
+  ;; explicit M-. -- so walking the candidate list shows each buffer/line/file.
+  (consult-preview-key 'any)
+  ;; Report line numbers counted from the start of the file even in a narrowed
+  ;; buffer, so they match what the compiler or git says.
   (consult-line-numbers-widen t)
   :config
   ;; Keep eglot's own buffers out of the buffer list.  This lived in
@@ -89,33 +111,46 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Act on the thing at point / on candidates
+;; A right-click menu for the keyboard: `embark-act' offers the actions that fit
+;; whatever is at point or is the current completion candidate (a file -> open,
+;; rename, delete; a symbol -> describe, find definition; a URL -> browse).
 (use-package embark
-  :bind (("C-." . embark-act)         ;; act on thing at point
-         ("C-;" . embark-dwim)        ;; do what I mean
-         ("C-h B" . embark-bindings)) ;; show bindings
+  :bind (("C-." . embark-act)         ;; menu of actions for the thing at point
+         ("C-;" . embark-dwim)        ;; run the most likely action without asking
+         ("C-h B" . embark-bindings)) ;; every binding available here, searchable
   :init
+  ;; With 3 or fewer candidates, TAB just cycles them instead of popping up a
+  ;; completion list.  Set here because embark's docs recommend it alongside
+  ;; `tab-always-indent' = complete, set at the top of this file.
   (setq completion-cycle-threshold 3))
 
+;; Glue: makes `embark-export' from a consult search produce a live grep/occur
+;; buffer, and adds consult's preview to embark's collect buffers.
 (use-package embark-consult
   :after (embark consult)
   :hook (embark-collect-mode . consult-preview-at-point-mode))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Completion at point
+;; In-buffer completion popup, driven by whatever `completion-at-point-functions'
+;; offers -- eglot in a code buffer, cape elsewhere.
 (use-package corfu
   :custom
-  (corfu-cycle t)                   ;; TAB cycles candidates
-  (corfu-auto t)                    ;; auto-popup completion
-  (corfu-auto-delay 0.2)            ;; delay before auto popup
-  (corfu-auto-prefix 2)             ;; minimum prefix length for auto
-  (corfu-popupinfo-delay 0.5)       ;; delay for doc popup
-  (corfu-preview-current t)         ;; preview current candidate
-  (corfu-on-exact-match nil)        ;; don't auto-insert on exact match
+  (corfu-cycle t)                   ;; TAB past the last candidate wraps to the first
+  (corfu-auto t)                    ;; pop up while typing, no need to hit TAB
+  (corfu-auto-delay 0.2)            ;; seconds of idle before it appears
+  (corfu-auto-prefix 2)             ;; ...and only after 2 characters
+  (corfu-popupinfo-delay 0.5)       ;; idle before the docs pane opens beside it
+  (corfu-preview-current t)         ;; show the selected candidate inline in the buffer
+  (corfu-on-exact-match nil)        ;; a single exact match still waits for confirmation
+  ;; Quit when point moves past a word boundary -- unless the boundary was typed
+  ;; as the separator below, which is how a multi-word orderless filter is
+  ;; entered without the popup closing on the space.
   (corfu-quit-at-boundary 'separator)
-  (corfu-quit-no-match t)
-  (corfu-separator ?\s)             ;; space is separator (for LSP)
-  (corfu-scroll-margin 5)
-  (corfu-preselect :first)
+  (corfu-quit-no-match t)           ;; nothing matches -> get out of the way
+  (corfu-separator ?\s)             ;; space separates orderless components
+  (corfu-scroll-margin 5)           ;; context rows kept visible while scrolling
+  (corfu-preselect :first)          ;; first candidate selected, so RET takes it
   :bind
   (:map corfu-map
         ("TAB"     . corfu-insert)
@@ -125,8 +160,10 @@
         ("M-l"     . corfu-show-location))   ;; jump to candidate source
   :init
   (global-corfu-mode 1)
-  (corfu-popupinfo-mode 1))
+  (corfu-popupinfo-mode 1))           ;; docs/signature in a pane next to the popup
 
+;; Extra completion-at-point back-ends.  These are what corfu falls back on in
+;; buffers with no LSP: file names and words already in the buffer.
 (use-package cape
   :init
   ;; Depths, not plain `add-hook' calls: `add-hook' prepends, so listing
@@ -135,6 +172,8 @@
   ;; which meant file completion almost never fired.
   (add-hook 'completion-at-point-functions #'cape-file -10)
   (add-hook 'completion-at-point-functions #'cape-dabbrev -5)
+  ;; Don't offer buffer words until 3 characters are typed -- below that the
+  ;; candidate list is noise.
   :custom (cape-dabbrev-min-length 3))
 
 ;; corfu draws its popup with child frames, which a terminal frame does not have

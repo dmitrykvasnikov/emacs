@@ -5,20 +5,38 @@
 ;; Loaded last, so a binding here wins over anything a package set globally.
 ;; Package-local bindings (:map ...) stay next to their `use-package'.
 
+;; ESC quits one level (prompt, popup, extra windows) the way C-g does, instead
+;; of acting as the Meta prefix.
 (global-set-key (kbd "<escape>") #'keyboard-escape-quit)
-(global-set-key (kbd "C-x C-b") #'ibuffer)
-(global-set-key (kbd "M-o") #'other-window)
-(global-set-key (kbd "M-/") #'comment-or-uncomment-region)
-(global-set-key (kbd "C-c t") #'consult-theme)
+
+(global-set-key (kbd "C-x C-b") #'ibuffer)   ; ibuffer, not the plain buffer list
+(global-set-key (kbd "M-o") #'other-window)  ; shorter than C-x o
+(global-set-key (kbd "M-/") #'comment-or-uncomment-region) ; replaces `dabbrev-expand'
+(global-set-key (kbd "C-c t") #'consult-theme) ; pick a theme, with live preview
+
+;; Shift-RET: open a new line below without breaking the current one, wherever
+;; point happens to be.  A keyboard macro rather than a command -- C-e to the
+;; end of the line, then RET.
 (global-set-key (kbd "S-<return>") (kbd "C-e C-m"))
+
 ;; C-= (er/expand-region) is bound from its own `use-package' in dk-defaults.el.
+
+;; Case changes.  The -dwim commands act on the region when one is active and on
+;; the word after point otherwise -- unlike `upcase-word' and friends, which
+;; always take the word.  M-l and M-c replace the stock bindings for those.
 (global-set-key (kbd "M-u") #'upcase-dwim)
 (global-set-key (kbd "M-l") #'downcase-dwim)
 (global-set-key (kbd "M-c") #'capitalize-dwim)
+
+;; Toggle CUA mode, for the occasional C-c/C-x/C-v copy-paste session.
 (global-set-key (kbd "C-c r") #'cua-mode)
+
+;; M-x, except that it moves to an already-open minibuffer instead of trying to
+;; start a second one; see dk-functions.el.
 (global-set-key (kbd "M-x") #'dk/M-x-dwim)
-(global-set-key (kbd "C-c k") #'dk/kill-current-buffer)
-(global-set-key (kbd "C-c e") #'eval-buffer)
+
+(global-set-key (kbd "C-c k") #'dk/kill-current-buffer) ; kill without confirming which
+(global-set-key (kbd "C-c e") #'eval-buffer)            ; re-evaluate an elisp buffer
 
 ;; Minibuffer editing: Shift-Backspace kills the previous word.
 ;; `minibuffer-local-map' is the parent of every other minibuffer keymap

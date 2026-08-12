@@ -68,10 +68,9 @@ Then launch Emacs and run the steps in [§9](#9-post-install-inside-emacs)
 | native compilation | `--with-native-compilation` | `eln-cache/`, startup speed (`early-init.el:43`) |
 | GUI build (X11/pgtk) | default | fonts (`src/dk-ui.el:43`), fringe bitmaps (`src/dk-programming.el:93`), corfu's child-frame popup |
 
-Arch's `extra/emacs` ships all four. A terminal-only build still works —
-`corfu-terminal` (`src/dk-completion.el:184`) and `diff-hl`'s margin fallback
-cover the tty case — but the font settings and fringe indicators are inert
-there.
+Arch's `extra/emacs` ships all four. A terminal-only build still mostly works
+— `diff-hl` falls back to the margin — but corfu's popup needs a child frame,
+and the font settings and fringe indicators are inert there.
 
 `emacsclient` ships with Emacs and is required by `with-editor`, which magit
 uses for commit messages.
@@ -214,7 +213,7 @@ files are never reformatted on save.
 | Font | Arch package | Needed by |
 |---|---|---|
 | **Aporetic Sans Mono** | `ttf-aporetic` — **AUR only** (`yay`/`paru`) | hard-coded as the `default` and `minibuffer-prompt` family (`src/dk-vars.el:16`, applied in `src/dk-ui.el:43`). Missing → silent fallback to some other monospace font, no warning. |
-| **Symbols Nerd Font Mono** | `ttf-nerd-fonts-symbols` | `nerd-icons`, the single icon backend here: doom-modeline (`src/dk-ui.el:57`), `nerd-icons-dired` (`src/dk-navigation.el:40`), `nerd-icons-corfu` (`src/dk-completion.el:191`). Missing → tofu boxes everywhere. |
+| **Symbols Nerd Font Mono** | `ttf-nerd-fonts-symbols` | `nerd-icons`, the single icon backend here: doom-modeline (`src/dk-ui.el:57`), `nerd-icons-dired` (`src/dk-navigation.el:40`), `nerd-icons-corfu` (`src/dk-completion.el:182`). Missing → tofu boxes everywhere. |
 
 Not on Arch: upstream Aporetic releases are at
 `github.com/protesilaos/aporetic` — unzip into `~/.local/share/fonts/` and run

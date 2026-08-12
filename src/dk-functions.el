@@ -97,6 +97,27 @@ recompile even the files whose .elc is already current."
   (interactive)
   (kill-buffer (current-buffer)))
 
+(defun dk/newline-below ()
+  "Open a new line below point and indent it, regardless of column.
+Bound to S-RET.  This replaced the `C-e C-m' keyboard macro that used to
+sit on that key: a macro re-runs whatever RET is bound to *now*, so in
+org and markdown it ran `org-return' / `markdown-enter-key' instead, and
+it indented only as far as `electric-indent-mode' happened to be on.
+Calling `newline-and-indent' directly makes the key mean the same thing
+in every mode."
+  (interactive)
+  (end-of-line)
+  (newline-and-indent))
+
+(defun dk/consult-line-repeat ()
+  "Run `consult-line' seeded with the previous search string.
+The equivalent of isearch's `C-s C-s': `consult-line' is not incremental,
+so there is no match to advance from -- this re-runs the last search
+instead.  Falls back to a plain `consult-line' when the history is empty
+or consult has not been loaded yet."
+  (interactive)
+  (consult-line (car (bound-and-true-p consult--line-history))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Language hooks
 (defun dk/no-clang-format-p ()
@@ -110,8 +131,13 @@ does not derive from `c-mode'."
        (not (locate-dominating-file default-directory ".clang-format"))))
 
 (defun dk/haskell-disable-doc-mode ()
-  "Turn off `haskell-doc-mode', it fights with eglot/eldoc over the echo area."
-  (haskell-doc-mode -1))
+  "Turn off `haskell-doc-mode', it fights with eglot/eldoc over the echo area.
+Guarded rather than called outright: `haskell-doc-mode' is autoloaded, so
+in a buffer where it was never switched on -- `haskell-ts-mode', which
+does not enable it -- calling the command would load the haskell-doc
+library just to turn a mode off that was already off."
+  (when (bound-and-true-p haskell-doc-mode)
+    (haskell-doc-mode -1)))
 
 (defun dk/eglot-clean-haskell-markdown (args)
   "Safely strip Haskell code fences from Eglot markup data in ARGS."
@@ -124,6 +150,46 @@ does not derive from `c-mode'."
             (plist-put markup :value clean-str)
           (setcar args clean-str)))))
   args)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Waiting for eglot before an xref jump
+(defun dk/eglot-expected-p ()
+  "Non-nil when this buffer's major mode is set up to start Eglot.
+Walks the mode's parents, so a mode whose `eglot-ensure' hook sits on a
+base mode is still recognised.  Checking the hooks rather than a fixed
+list of modes means this cannot drift out of step with the `:hook' clause
+in dk-programming.el."
+  (and buffer-file-name
+       (seq-some (lambda (mode)
+                   (let ((hook (intern-soft (format "%s-hook" mode))))
+                     (and hook (boundp hook)
+                          (memq 'eglot-ensure (symbol-value hook)))))
+                 (derived-mode-all-parents major-mode))))
+
+(defun dk/xref-wait-for-eglot (&rest _)
+  "Wait for a starting Eglot server before xref settles on a backend.
+`eglot-ensure' connects in the background, so right after a file is
+opened the buffer is not managed yet and `xref-backend-functions' still
+answers `etags': M-. then prompts for a TAGS file that does not exist
+instead of jumping, which reads as \"navigation is broken\".  The window
+is milliseconds for a warm server but seconds for gopls on a cold cache
+in a cgo-heavy project -- precisely when the first jump is made.
+
+Waiting here rather than raising `eglot-sync-connect' keeps visiting a
+file instant and pays the cost only on the jump that needs it.  Erroring
+out afterwards is deliberate: in a mode that has an LSP server the etags
+fallback has nothing useful to offer."
+  ;; `eglot--managed-mode' first: one buffer-local variable read short-circuits
+  ;; every jump in a connected buffer, which is all of them after the first.
+  (when (and (not (bound-and-true-p eglot--managed-mode))
+             (dk/eglot-expected-p))
+    (with-delayed-message (1 "Waiting for the language server...")
+      (let ((deadline (+ (float-time) dk/eglot-connect-wait)))
+        (while (and (not (bound-and-true-p eglot--managed-mode))
+                    (< (float-time) deadline))
+          (accept-process-output nil 0.05))))
+    (unless (bound-and-true-p eglot--managed-mode)
+      (user-error "No language server in this buffer yet; try M-x eglot"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Prose display

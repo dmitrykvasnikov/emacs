@@ -79,6 +79,10 @@
          ("C-x 4 b" . consult-buffer-other-window)
          ("C-c C-f" . consult-find)            ;; find(1) under a directory
          ("C-s"     . consult-line)            ;; search lines in this buffer
+         ;; Repeat that search with its previous string, the way C-s C-s does in
+         ;; isearch.  GUI only: a terminal cannot tell C-S-s from C-s, so there
+         ;; this key just arrives as C-s and starts a fresh `consult-line'.
+         ("C-S-s"   . dk/consult-line-repeat)
          ("C-x C-r" . consult-recent-file)
          ("C-c ?"   . consult-flymake)         ;; jump through the diagnostics
          ("C-c m"   . consult-mode-command)    ;; only the current mode's commands
@@ -101,7 +105,21 @@
   ;; Keep eglot's own buffers out of the buffer list.  This lived in
   ;; `projectile-globally-ignored-buffers' before; project.el has no
   ;; equivalent, and consult is what actually lists buffers here.
-  (add-to-list 'consult-buffer-filter "\\`EGLOT"))
+  (add-to-list 'consult-buffer-filter "\\`EGLOT")
+  ;; Build directories kept out of C-x p g as well, matching what project.el
+  ;; hides from C-x p f (see `dk/project-ignored-directories').  rg already
+  ;; reads .gitignore, so this only bites in the projects that do not ignore
+  ;; their own build output -- exactly the case that prompted the setting.
+  ;; Appended in `:config' rather than set in `:custom': consult is deferred,
+  ;; so the variable does not exist yet when the `:custom' forms run, and the
+  ;; upstream default is worth inheriting rather than restating here.
+  ;; `ensure-list' because the variable is documented as a string *or* a list;
+  ;; it is a string today, and `consult--build-args' accepts either, so going
+  ;; through a list keeps this working if that default is ever changed.
+  (setq consult-ripgrep-args
+        (append (ensure-list consult-ripgrep-args)
+                (mapcar (lambda (dir) (format "--glob=!%s" dir))
+                        dk/project-ignored-directories))))
 
 ;; The other half of the C-r story: shells and REPLs keep a real history too.
 ;; Kept outside the `use-package' above because that block only runs once consult

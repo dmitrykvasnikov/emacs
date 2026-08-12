@@ -50,6 +50,15 @@
   ;; Keep the server managing a file reached by M-. that lies outside the
   ;; project (a dependency's source), instead of opening it unmanaged.
   (setq eglot-extend-to-xref t)
+  ;; Shut the server down once its last managed buffer is killed.  Off by
+  ;; default, and in a normal Emacs session that default is fine -- quitting
+  ;; Emacs reaps the servers.  This one runs as a daemon, which never quits, so
+  ;; without this a server outlives every buffer of its project and is only
+  ;; reclaimed by restarting the daemon.  With HLS and rust-analyzer in the mix
+  ;; that is a lot of resident memory held for projects closed hours ago.
+  ;; The cost is a cold restart on the next visit; `dk/xref-wait-for-eglot'
+  ;; covers the part of that which used to look like broken navigation.
+  (setq eglot-autoshutdown t)
   ;; Haskell servers wrap their docs in ```haskell fences; strip them so the
   ;; eldoc buffer shows plain text.
   (advice-add 'eglot--format-markup
@@ -68,6 +77,15 @@
          ("M-?"   . xref-find-references)
          ("M-,"   . xref-go-back)         ; back to where M-. was pressed
          ("C-M-." . xref-find-apropos)))  ; definitions matching a pattern
+
+;; A jump made in the first moments after opening a file would otherwise fall
+;; through to the etags backend, because eglot has not finished connecting and
+;; the buffer is not managed yet -- see `dk/xref-wait-for-eglot'.  Plain
+;; `advice-add' rather than `define-advice': these are commands from a built-in
+;; library, and the advice has to be in place before the first jump, not after
+;; xref's `use-package' happens to load.
+(advice-add 'xref-find-definitions :before #'dk/xref-wait-for-eglot)
+(advice-add 'xref-find-references  :before #'dk/xref-wait-for-eglot)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Diagnostics

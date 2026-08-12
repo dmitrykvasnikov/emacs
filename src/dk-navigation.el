@@ -57,6 +57,19 @@
   ;; root, which is what you want in a cabal or cargo workspace.
   (project-vc-extra-root-markers '("*.cabal" "stack.yaml" "Cargo.toml"
                                    "go.mod" "compile_commands.json"))
+  ;; Build output kept out of C-x p f and C-x p d.  `project-files' reaches the
+  ;; file list two different ways and this is the one setting both of them
+  ;; honour: at the VC root it becomes a `:(exclude,glob,top)' pathspec on
+  ;; `git ls-files', and anywhere else -- a root found by a marker above rather
+  ;; than by git, say a package inside a cabal workspace -- it comes back
+  ;; through `project-ignores' into the find(1) call.  See dk-vars.el for why a
+  ;; net is needed at all when .gitignore already exists.
+  ;;
+  ;; The trailing slash is load-bearing -- without it git gets `**/dist-newstyle',
+  ;; which matches the directory but not the files inside it, and the whole
+  ;; setting quietly does nothing.  find(1) prunes either way.
+  (project-vc-ignores (mapcar (lambda (dir) (concat dir "/"))
+                              dk/project-ignored-directories))
   ;; Where the list of known projects is persisted (default: ~/.emacs.d/projects
   ;; anyway, but named explicitly so it is obvious which file to delete when the
   ;; list goes stale).
@@ -77,6 +90,17 @@
   ;; Unlike projectile's this is a global binding rather than a minor-mode map,
   ;; so nothing shadows it and project keys can be defined anywhere.
   (keymap-global-set "C-c p" project-prefix-map))
+
+;; The same directories kept out of the grep-based searches: `project-find-regexp'
+;; (C-x p r) and `rgrep' build their find(1) command from this list.  Appended
+;; rather than assigned -- the stock value is the VCS metadata directories, which
+;; still need skipping.
+(use-package grep
+  :ensure nil                           ; built-in
+  :defer t
+  :config
+  (dolist (dir dk/project-ignored-directories)
+    (add-to-list 'grep-find-ignored-directories dir)))
 
 (provide 'dk-navigation)
 ;;; dk-navigation.el ends here

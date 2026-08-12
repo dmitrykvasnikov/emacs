@@ -14,10 +14,10 @@
 (global-set-key (kbd "M-/") #'comment-or-uncomment-region) ; replaces `dabbrev-expand'
 (global-set-key (kbd "C-c t") #'consult-theme) ; pick a theme, with live preview
 
-;; Shift-RET: open a new line below without breaking the current one, wherever
-;; point happens to be.  A keyboard macro rather than a command -- C-e to the
-;; end of the line, then RET.
-(global-set-key (kbd "S-<return>") (kbd "C-e C-m"))
+;; Shift-RET: open an indented new line below without breaking the current one,
+;; wherever point happens to be.  See dk-functions.el for why this is a command
+;; and no longer the `C-e C-m' keyboard macro.
+(global-set-key (kbd "S-<return>") #'dk/newline-below)
 
 ;; C-= (er/expand-region) is bound from its own `use-package' in dk-defaults.el.
 

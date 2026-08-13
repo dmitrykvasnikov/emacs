@@ -5,6 +5,9 @@
 ;; vertico + orderless + marginalia + consult in the minibuffer,
 ;; corfu + cape at point, embark to act on candidates.
 
+(require 'dk-vars)                      ; `dk/project-ignored-directories'
+(require 'dk-functions)                 ; `dk/consult-line-repeat'
+
 ;; TAB completes when the line is already indented; this is the single place
 ;; `tab-always-indent' is set (corfu/embark both want the `complete' value).
 (setq tab-always-indent 'complete)
@@ -58,10 +61,17 @@
   (completion-styles '(orderless basic))
   ;; File names are the exception: `partial-completion' is what expands
   ;; /u/s/l into /usr/share/lib, and orderless would ignore the separators.
-  (completion-category-overrides '((file (styles partial-completion))))
-  ;; Let `partial-completion' match in the middle of a component too, so "log"
-  ;; finds "catalog.txt" and not just files starting with "log".
-  (completion-pcm-leading-wildcard t))
+  (completion-category-overrides '((file (styles partial-completion)))))
+
+;; Let `partial-completion' match in the middle of a component too, so "log"
+;; finds "catalog.txt" and not just files starting with "log".
+;;
+;; Emacs 31 and later only -- the variable does not exist in 30.x, where this
+;; sat in the `:custom' block above and quietly set a symbol nothing reads.
+;; Guarded rather than deleted so the behaviour arrives on its own with the
+;; next Emacs; same treatment as the eglot note in dk-programming.el.
+(when (boundp 'completion-pcm-leading-wildcard)
+  (setopt completion-pcm-leading-wildcard t))
 
 ;; Annotations in the right margin of the candidate list: a command's key
 ;; binding, a variable's value, a file's size and mode.
@@ -77,7 +87,13 @@
 (use-package consult
   :bind (("C-x b"   . consult-buffer)          ;; buffers + recent files + bookmarks
          ("C-x 4 b" . consult-buffer-other-window)
-         ("C-c C-f" . consult-find)            ;; find(1) under a directory
+         ;; `C-c f', not `C-c C-f': the latter is major-mode territory, and it
+         ;; was already being taken back -- org binds it to
+         ;; `org-forward-heading-same-level', markdown to
+         ;; `markdown-outline-next-same-level', haskell-ts-mode to
+         ;; `haskell-ts-format'.  `C-c <letter>' is the space reserved for the
+         ;; user, so nothing upstream can claim it.
+         ("C-c f"   . consult-find)            ;; find(1) under a directory
          ("C-s"     . consult-line)            ;; search lines in this buffer
          ;; Repeat that search with its previous string, the way C-s C-s does in
          ;; isearch.  GUI only: a terminal cannot tell C-S-s from C-s, so there

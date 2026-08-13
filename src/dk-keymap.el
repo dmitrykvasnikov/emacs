@@ -5,13 +5,21 @@
 ;; Loaded last, so a binding here wins over anything a package set globally.
 ;; Package-local bindings (:map ...) stay next to their `use-package'.
 
+(require 'dk-functions)                 ; `dk/M-x-dwim', `dk/newline-below', ...
+
 ;; ESC quits one level (prompt, popup, extra windows) the way C-g does, instead
 ;; of acting as the Meta prefix.
 (global-set-key (kbd "<escape>") #'keyboard-escape-quit)
 
 (global-set-key (kbd "C-x C-b") #'ibuffer)   ; ibuffer, not the plain buffer list
 (global-set-key (kbd "M-o") #'other-window)  ; shorter than C-x o
-(global-set-key (kbd "M-/") #'comment-or-uncomment-region) ; replaces `dabbrev-expand'
+;; Comment the region, or just the current line when there is none.  Replaces
+;; `dabbrev-expand'.  Not `comment-or-uncomment-region': its interactive spec is
+;; "*r", so it demands a region every time -- with no mark set it simply errored
+;; ("The mark is not set now, so there is no region"), and with a stale mark left
+;; over from some earlier command it silently commented out everything back to
+;; wherever that was.  `comment-line' takes a count instead and handles both.
+(global-set-key (kbd "M-/") #'comment-line)
 (global-set-key (kbd "C-c t") #'consult-theme) ; pick a theme, with live preview
 
 ;; Shift-RET: open an indented new line below without breaking the current one,

@@ -2,6 +2,8 @@
 
 ;;; Moving around: files, directories, projects
 
+(require 'dk-vars)                      ; `dk/project-ignored-directories'
+
 ;; The list of recently visited files, persisted across sessions.  It is what
 ;; backs `consult-recent-file' (C-x C-r) and the recent-file section of
 ;; `consult-buffer'.

@@ -6,6 +6,13 @@
 ;; named (instead of inline lambdas) means a hook can be removed again and a
 ;; module can be re-loaded without stacking duplicates.
 
+(require 'dk-vars)                      ; `dk/eglot-connect-wait'
+
+;; Called only under a `derived-mode-p' guard, so org is loaded by then; this
+;; just keeps the byte-compiler quiet about it.
+(declare-function org-at-table-p "org" (&optional table-type))
+(declare-function org-table-copy-down "org-table" (n))
+
 ;; Display statistics @startup
 (defun dk/display-startup-time ()
   "Display statistics on start-up"
@@ -104,10 +111,17 @@ sit on that key: a macro re-runs whatever RET is bound to *now*, so in
 org and markdown it ran `org-return' / `markdown-enter-key' instead, and
 it indented only as far as `electric-indent-mode' happened to be on.
 Calling `newline-and-indent' directly makes the key mean the same thing
-in every mode."
+in every mode.
+
+Inside an org table it defers to `org-table-copy-down' instead.  Org
+binds that to S-RET and to nothing else -- the menu entry aside, taking
+the key outright would remove the command from the keyboard altogether --
+and \"open a line below\" has no meaning in a table row anyway."
   (interactive)
-  (end-of-line)
-  (newline-and-indent))
+  (if (and (derived-mode-p 'org-mode) (org-at-table-p))
+      (call-interactively #'org-table-copy-down)
+    (end-of-line)
+    (newline-and-indent)))
 
 (defun dk/consult-line-repeat ()
   "Run `consult-line' seeded with the previous search string.
@@ -190,6 +204,19 @@ fallback has nothing useful to offer."
           (accept-process-output nil 0.05))))
     (unless (bound-and-true-p eglot--managed-mode)
       (user-error "No language server in this buffer yet; try M-x eglot"))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Minibuffer display
+(defun dk/minibuffer-small-font ()
+  "Shrink the whole minibuffer to `dk/minibuffer-font-height'.
+The candidate list included.  A face attribute on `minibuffer-prompt'
+does not do this: per
+`minibuffer-prompt-properties' that face is put on the prompt string and
+nothing else, so vertico's candidates -- which are ordinary buffer text --
+kept the full-size `default' face and only the prompt shrank.  Remapping
+`default' buffer-locally covers the whole minibuffer window."
+  (setq-local face-remapping-alist
+              `((default :height ,dk/minibuffer-font-height))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Prose display

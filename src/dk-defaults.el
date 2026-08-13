@@ -4,6 +4,8 @@
 ;;
 ;; Everything here is about *how editing behaves*; how it looks is in ui.el.
 
+(require 'dk-vars)                      ; `dk/auto-save-directory'
+
 (setq use-short-answers t)              ; y/n instead of typing out yes/no
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

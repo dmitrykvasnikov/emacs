@@ -6,6 +6,9 @@
 ;; dk-programming.el, and the grammar/remap plumbing is in dk-treesit.el.
 ;; This file only holds what differs per language.
 
+(require 'treesit)                      ; `treesit-ready-p' in `dk/haskell-toggle-ts'
+(require 'dk-functions)                 ; `dk/haskell-disable-doc-mode'
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LSP servers
 ;;
@@ -63,8 +66,11 @@
   ;; `auto-mode-alist' as soon as the grammar is ready, which would hijack .hs
   ;; the first time the package is touched.  Drop it -- the remap alist decides.
   (setq auto-mode-alist (delete '("\\.hs\\'" . haskell-ts-mode) auto-mode-alist))
-  ;; Upstream binds C-c C-f to `haskell-ts-format', shadowing the global
-  ;; `consult-find'.  apheleia already formats on save.
+  ;; Upstream binds C-c C-f to `haskell-ts-format'.  apheleia already formats
+  ;; on save, so the manual command is only a way to reformat at a moment
+  ;; apheleia would not have picked -- not worth a key.  (It used to shadow the
+  ;; global `consult-find' as well; that binding has since moved to C-c f, so
+  ;; dropping this line no longer costs anything but the clutter.)
   (keymap-unset haskell-ts-mode-map "C-c C-f" t))
 
 (defun dk/haskell-toggle-ts ()

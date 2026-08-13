@@ -5,6 +5,8 @@
 ;; LSP, diagnostics, formatting and the prog-mode display bits.
 ;; Per-language settings (servers, modes, hooks) live in dk-languages.el.
 
+(require 'dk-functions)                 ; `dk/xref-wait-for-eglot', `dk/no-clang-format-p'
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Display in code buffers
 ;; Line numbers in code buffers only -- prose and special buffers stay clean.

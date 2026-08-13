@@ -2,6 +2,9 @@
 
 ;;; Prose: Markdown and Org
 
+(require 'dk-vars)                      ; `dk/org-directory'
+(require 'dk-functions)                 ; `dk/prose-display'
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Markdown
 (use-package markdown-mode
@@ -81,7 +84,15 @@
   (org-insert-heading-respect-content t)
   (org-auto-align-tags nil)                      ;; let org-modern place tags
   (org-tags-column 0)                            ;; ...right after the title, not at col 77
-  (org-imenu-depth 4))                           ;; imenu/consult see 4 heading levels
+  (org-imenu-depth 4)                            ;; imenu/consult see 4 heading levels
+  :bind (:map org-mode-map
+              ;; S-RET means "open an indented line below" everywhere else, and
+              ;; `org-mode-map' shadows the global binding -- so without this
+              ;; entry the key keeps org's meaning throughout an org buffer.
+              ;; `dk/newline-below' hands back to `org-table-copy-down' when
+              ;; point is actually in a table, which is the only place org's
+              ;; binding is worth anything.
+              ("S-<return>" . dk/newline-below)))
 
 (use-package org-modern
   :hook (org-mode . org-modern-mode)

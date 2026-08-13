@@ -5,6 +5,9 @@
 ;; `inhibit-startup-message' and the menu/tool-bar removal live in
 ;; early-init.el, so the frame is never created with them in the first place.
 
+(require 'dk-vars)                      ; `dk/font-family', `dk/font-height'
+(require 'dk-functions)                 ; `dk/enable-tty-mouse', `dk/helpful-*'
+
 ;; Text put in *scratch* on start-up.  Must be comment syntax for the buffer's
 ;; mode (lisp-interaction-mode), hence the leading `;;'.
 (setq initial-scratch-message
@@ -39,14 +42,18 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Fonts
 ;;
-;; Set as face attributes rather than through `default-frame-alist', so they
-;; apply to frames made later by `emacsclient' too.  The family and both sizes
-;; come from dk-vars.el.  The minibuffer is deliberately a size smaller than the
-;; body text, so vertico's candidate list takes up less of the frame.
+;; Set as a face attribute rather than through `default-frame-alist', so it
+;; applies to frames made later by `emacsclient' too.  The family and both sizes
+;; come from dk-vars.el.
 (set-face-attribute 'default nil
                     :family dk/font-family :height dk/font-height)
-(set-face-attribute 'minibuffer-prompt nil
-                    :family dk/font-family :height dk/minibuffer-font-height)
+
+;; The minibuffer is deliberately a size smaller than the body text, so
+;; vertico's candidate list takes up less of the frame.  This has to be a
+;; buffer-local remap of `default' installed per prompt -- see
+;; `dk/minibuffer-small-font' for why setting the `minibuffer-prompt' face
+;; instead only ever shrank the prompt string.
+(add-hook 'minibuffer-setup-hook #'dk/minibuffer-small-font)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Icons and modeline

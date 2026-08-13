@@ -27,7 +27,10 @@
 ;; soon as point leaves the window.
 (setq make-cursor-line-fully-visible nil) ; let the last line be half-visible, don't scroll
 (setq scroll-preserve-screen-position t)  ; C-v/M-v put point back on the same screen row
-(setq word-wrap t)                        ; when a line does wrap, break at word boundaries
+;; `setq-default', not `setq': `word-wrap' is automatically buffer-local, so a
+;; plain `setq' here would only affect the buffer that happened to be current
+;; while this file loaded, and every other buffer would keep breaking mid-word.
+(setq-default word-wrap t)                ; when a line does wrap, break at word boundaries
 (setq recenter-positions '(middle top))   ; C-l cycles middle -> top only, no bottom stop
 (setq scroll-conservatively 1000)         ; scroll line by line, never recenter
 (setq scroll-margin 3)                    ; keep 3 lines of context above/below point

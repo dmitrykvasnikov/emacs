@@ -33,6 +33,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Global minor modes
 (delete-selection-mode 1)               ; typing replaces the active region
+;; 100 entries (the default) is little for a history that now survives restarts
+;; and is read back by consult-history, M-y and the C-r prompts.
+(setq history-length 1000)
 (savehist-mode 1)                       ; persist minibuffer history across sessions
 (save-place-mode 1)                     ; reopen files at the point last left there
 (global-auto-revert-mode 1)             ; reload files changed on disk (e.g. by git)
@@ -58,6 +61,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Search
+;;
+;; These reach isearch through C-r and through the commands that start one
+;; themselves (isearch-forward-symbol-at-point, the C-M-s regexp searches,
+;; dired's C-s).  C-s itself is `consult-line' -- see dk-completion.el -- so
+;; the forward search does not go through here.
 (setq isearch-allow-scroll t)           ; scroll commands don't exit the search
 (setq isearch-lazy-count t)             ; "3/17" in the prompt while typing
 (setq isearch-wrap-pause 'no-ding)      ; wrap past the end silently, no extra C-s

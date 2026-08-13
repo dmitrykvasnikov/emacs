@@ -12,6 +12,21 @@
 ;; `tab-always-indent' is set (corfu/embark both want the `complete' value).
 (setq tab-always-indent 'complete)
 
+;; Let a prompt be opened from inside another prompt.  Off by default, and
+;; several things here assume it is on: `embark-act' on a candidate runs its
+;; action through a second prompt, consult commands preview into one, and
+;; `dk/M-x-dwim' exists to move between them.  Without it those all fail with
+;; "Command attempted to use minibuffer while in minibuffer".
+(setq enable-recursive-minibuffers t)
+
+;; ...with the nesting depth shown in the prompt, so a stack of them is
+;; readable rather than a mystery about which C-g lands where.
+(minibuffer-depth-indicate-mode 1)
+
+;; Hide commands that the current major mode declares irrelevant (via their
+;; `completion-predicate' or a `:completion-predicate' declaration) from M-x.
+(setq read-extended-command-predicate #'command-completion-default-include-p)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Minibuffer UI
 ;; Vertical candidate list in the minibuffer, in place of the stock
@@ -31,13 +46,25 @@
   :after vertico
   :bind (:map vertico-map
               ("RET"   . vertico-directory-enter)
-              ;; Plain commands, not the vertico-directory-* variants: those delete a
-              ;; whole path component when point is right after "/", which makes
+              ;; Plain command, not the vertico-directory-* variant: that one deletes
+              ;; a whole path component when point is right after "/", which makes
               ;; Backspace and Shift-Backspace identical at a directory boundary.
+              ;; (S-<backspace> itself is bound once, on `minibuffer-local-map' in
+              ;; dk-keymap.el -- `vertico-map' inherits from it.)
               ("DEL"   . delete-backward-char)
-              ("S-<backspace>" . backward-kill-word)
               ;; Up one directory in file prompts; plain word kill everywhere else
-              ("M-DEL" . vertico-directory-delete-word)))
+              ("M-DEL" . vertico-directory-delete-word))
+  :init
+  ;; Drop the shadowed part of a path outright -- typing "/etc/" halfway through
+  ;; ~/some/long/path leaves just "/etc/" in the prompt, instead of the whole
+  ;; dead prefix sitting there greyed out.
+  ;;
+  ;; In `:init', not `:config': nothing here demand-loads vertico-directory --
+  ;; the `:bind' entries above only put autoloaded command symbols into
+  ;; `vertico-map' -- so a `:config' form does not run until RET or M-DEL is
+  ;; first pressed in a file prompt, and the hook would sit unset until then.
+  ;; `vertico-directory-tidy' is autoloaded, so naming it here is enough.
+  (add-hook 'rfn-eshadow-update-overlay-hook #'vertico-directory-tidy))
 
 ;; Per-category vertico settings.  Also ships with vertico.
 (use-package vertico-multiform
@@ -186,11 +213,12 @@
   (corfu-scroll-margin 5)           ;; context rows kept visible while scrolling
   (corfu-preselect :first)          ;; first candidate selected, so RET takes it
   :bind
+  ;; RET (corfu-insert) and C-g (corfu-quit) are corfu's own defaults and are
+  ;; not restated here.  TAB is: upstream puts `corfu-complete' on it, which
+  ;; extends the common prefix rather than taking the candidate.
   (:map corfu-map
         ("TAB"     . corfu-insert)
-        ("RET"     . corfu-insert)
         ("M-d"     . corfu-popupinfo-toggle) ;; toggle doc popup
-        ("C-g"     . corfu-quit)
         ("M-l"     . corfu-show-location))   ;; jump to candidate source
   :init
   (global-corfu-mode 1)

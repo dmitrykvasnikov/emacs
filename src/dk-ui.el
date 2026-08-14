@@ -56,6 +56,35 @@
 (add-hook 'minibuffer-setup-hook #'dk/minibuffer-small-font)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Ligatures
+;;
+;; What this package does is install composition rules, so that a run like `->'
+;; is handed to the shaper as one unit; the glyph itself comes from the font's
+;; `calt'/`liga' features.  Two things have to hold for anything to show up, and
+;; neither is this file's doing: the build needs HARFBUZZ (it is listed in
+;; `system-configuration-features'), and `dk/font-family' has to name a family
+;; that actually ships the ligatures -- see the note there about why Aporetic
+;; Sans Mono did not.
+;;
+;; GUI only.  In `emacs -nw' the glyphs on screen are the terminal emulator's to
+;; draw, and this mode has no say in it.
+(use-package ligature
+  :config
+  ;; Bound to `prog-mode' rather than t, so that the arrows and `!=' stay
+  ;; literal text in prose buffers and in the minibuffer.
+  (ligature-set-ligatures
+   'prog-mode
+   '("<---" "<--" "<<-" "<-" "->" "-->" "--->" "<->" "<-->" "<--->" "<---->"
+     "<==" "<===" "<=" "=>" "==>" "===>" "<=>" "<==>" "<===>" "<====>"
+     "<~~" "<~" "~>" "~~>" "::" ":::" "==" "!=" "===" "!==" "=/=" "/="
+     ":=" "<|" "<|>" "|>" "<*" "<*>" "*>" "++" "+++" "&&" "||" "|||"
+     "<>" "</" "/>" "</>" "/*" "*/" "//" "///" ";;" ".." "..." "?."
+     "www" "**" "***" "#{" "#(" "#_" "#_(" "__"))
+  ;; The global mode is what turns the rules above into buffer-local
+  ;; compositions; `ligature-set-ligatures' on its own only records them.
+  (global-ligature-mode 1))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Icons and modeline
 ;;
 ;; nerd-icons is the single icon backend for the whole config (modeline, dired,

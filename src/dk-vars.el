@@ -13,8 +13,13 @@ replacement through `file-name-directory' before appending the mangled
 name -- without the slash the last component is read as a file name and
 dropped, and every auto-save lands in `user-emacs-directory' instead.")
 
-(defvar dk/font-family "Aporetic Sans Mono"
-  "Font family used for the default and minibuffer faces.")
+(defvar dk/font-family "Iosevka"
+  "Font family used for the default and minibuffer faces.
+Must be a family that ships programming ligatures, or the `ligature'
+setup in dk-ui.el has nothing to compose: Emacs only asks HarfBuzz to
+apply the font's own `calt'/`liga' features, it cannot invent glyphs.
+Aporetic Sans Mono, the previous value, is a fork of this font whose
+monospaced cuts are built with those OpenType features stripped.")
 
 (defvar dk/font-height 115
   "Height (1/10 pt) of the `default' face.")

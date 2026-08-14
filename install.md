@@ -42,7 +42,7 @@ sudo pacman -S --needed taplo-cli prettier shfmt
 
 # Fonts
 sudo pacman -S --needed ttf-nerd-fonts-symbols
-yay -S ttf-aporetic            # AUR only (or paru -S ttf-aporetic)
+yay -S ttf-iosevka             # AUR only (or paru -S ttf-iosevka)
 
 # Org directory referenced by org-agenda-files
 mkdir -p ~/org
@@ -67,10 +67,19 @@ Then launch Emacs and run the steps in [§9](#9-post-install-inside-emacs)
 | dynamic modules | `--with-modules` | loading the compiled grammar `.so` files |
 | native compilation | `--with-native-compilation` | `eln-cache/`, startup speed (`early-init.el:43`) |
 | GUI build (X11/pgtk) | default | fonts (`src/dk-ui.el:43`), fringe bitmaps (`src/dk-programming.el:93`), corfu's child-frame popup |
+| HarfBuzz | `--with-harfbuzz` | the shaping that turns the composition rules in `src/dk-ui.el:71` into ligature glyphs |
 
-Arch's `extra/emacs` ships all four. A terminal-only build still mostly works
+Arch's `extra/emacs` ships all five. A terminal-only build still mostly works
 — `diff-hl` falls back to the margin — but corfu's popup needs a child frame,
-and the font settings and fringe indicators are inert there.
+and the font settings and fringe indicators are inert there. Ligatures are
+inert there too, for a different reason: in `emacs -nw` the glyphs are the
+terminal emulator's to draw, whatever this config asks for.
+
+To confirm the build has what the ligatures need:
+
+```elisp
+(and (display-graphic-p) (string-match-p "HARFBUZZ" system-configuration-features))
+```
 
 `emacsclient` ships with Emacs and is required by `with-editor`, which magit
 uses for commit messages.
@@ -212,16 +221,36 @@ files are never reformatted on save.
 
 | Font | Arch package | Needed by |
 |---|---|---|
-| **Aporetic Sans Mono** | `ttf-aporetic` — **AUR only** (`yay`/`paru`) | hard-coded as the `default` and `minibuffer-prompt` family (`src/dk-vars.el:16`, applied in `src/dk-ui.el:43`). Missing → silent fallback to some other monospace font, no warning. |
-| **Symbols Nerd Font Mono** | `ttf-nerd-fonts-symbols` | `nerd-icons`, the single icon backend here: doom-modeline (`src/dk-ui.el:57`), `nerd-icons-dired` (`src/dk-navigation.el:40`), `nerd-icons-corfu` (`src/dk-completion.el:182`). Missing → tofu boxes everywhere. |
+| **Iosevka** | `ttf-iosevka` — **AUR only** (`yay`/`paru`) | hard-coded as the `default` and `minibuffer-prompt` family (`src/dk-vars.el:16`, applied in `src/dk-ui.el:43`), and it is the family whose `calt`/`liga` features the ligature setup below composes. Missing → silent fallback to some other monospace font, no warning, and no ligatures. |
+| **Symbols Nerd Font Mono** | `ttf-nerd-fonts-symbols` | `nerd-icons`, the single icon backend here: doom-modeline (`src/dk-ui.el:96`), `nerd-icons-dired` (`src/dk-navigation.el:40`), `nerd-icons-corfu` (`src/dk-completion.el:182`). Missing → tofu boxes everywhere. |
 
-Not on Arch: upstream Aporetic releases are at
-`github.com/protesilaos/aporetic` — unzip into `~/.local/share/fonts/` and run
-`fc-cache -f`. For the Nerd Font, `M-x nerd-icons-install-fonts` downloads and
-installs it from inside Emacs.
+Not on Arch: upstream Iosevka releases are at `github.com/be5invis/Iosevka` —
+unzip into `~/.local/share/fonts/` and run `fc-cache -f`. For the Nerd Font,
+`M-x nerd-icons-install-fonts` downloads and installs it from inside Emacs.
 
 To use a different font instead, edit `dk/font-family` in `src/dk-vars.el` —
-it is referenced from one place only.
+it is referenced from one place only. One constraint on the replacement: the
+`ligature` package (`src/dk-ui.el:71`) installs composition rules, but the
+glyphs come from the font's own OpenType features, so a family built without
+`calt`/`liga` silently gets no ligatures. That is exactly why **Aporetic Sans
+Mono**, the previous value here, was dropped: its monospaced cuts ship
+`cv01`–`cv99` and `ss01`–`ss20` but no ligature features at all. To check a
+candidate before switching:
+
+```bash
+python3 - <<'EOF'
+import struct
+p = '/usr/share/fonts/TTF/Iosevka-Regular.ttf'   # path to the font file
+d = open(p, 'rb').read()
+tabs = {d[12+16*i:16+16*i].decode('latin1'): struct.unpack('>II', d[20+16*i:28+16*i])
+        for i in range(struct.unpack('>H', d[4:6])[0])}
+o = tabs['GSUB'][0]
+flo = o + struct.unpack('>H', d[o+6:o+8])[0]
+n = struct.unpack('>H', d[flo:flo+2])[0]
+feats = {d[flo+2+6*i:flo+6+6*i].decode('latin1') for i in range(n)}
+print(sorted(feats & {'liga', 'calt', 'clig', 'dlig'}) or 'no ligature features')
+EOF
+```
 
 ---
 
@@ -303,7 +332,7 @@ for c in emacs emacsclient git gcc g++ make find grep rg pandoc \
   printf '%-36s %s\n' "$c" "$(command -v "$c" 2>/dev/null || echo MISSING)"
 done
 
-fc-list : family | grep -c 'Aporetic Sans Mono'   # expect >= 1
+fc-list : family | grep -cw 'Iosevka'             # expect >= 1
 fc-list : family | grep -ci 'symbols nerd font'   # expect >= 1
 ```
 

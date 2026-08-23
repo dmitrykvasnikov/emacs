@@ -118,24 +118,7 @@
    ("C-h v" . helpful-variable)
    ("C-h k" . helpful-key)
    ("C-h x" . helpful-command)
-   ("C-h C-h" . helpful-at-point))
-  :config
-  ;; Dismiss the helpful window with C-g or ESC from wherever point happens to
-  ;; be.  A binding in `helpful-mode-map' only fires once the helpful buffer is
-  ;; selected, and `dk/helpful-open' normally does not select it, so the
-  ;; quit commands themselves have to know about the window.  On a frame too
-  ;; small to split, the documented fallback does select it and these advices
-  ;; still give both display paths the same dismissal keys.
-  ;;
-  ;; `:before-until' means the quit is swallowed only when a helpful window was
-  ;; actually closed; with none up, C-g and ESC behave exactly as before.  C-g
-  ;; at a prompt runs `minibuffer-keyboard-quit' rather than `keyboard-quit',
-  ;; so aborting a minibuffer is untouched.  These live in `:config' because
-  ;; helpful is autoloaded -- there can be no helpful window before it loads.
-  (advice-add 'keyboard-quit :before-until #'dk/helpful-dismiss)
-  ;; This also keeps `keyboard-escape-quit' from reaching its
-  ;; `delete-other-windows' branch and tearing down unrelated splits.
-  (advice-add 'keyboard-escape-quit :before-until #'dk/helpful-dismiss))
+   ("C-h C-h" . helpful-at-point)))
 
 (provide 'dk-ui)
 ;;; dk-ui.el ends here

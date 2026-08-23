@@ -7,8 +7,8 @@
 
 (require 'dk-functions)                 ; `dk/M-x-dwim', `dk/newline-below', ...
 
-;; ESC quits one level (prompt, popup, extra windows) the way C-g does, instead
-;; of acting as the Meta prefix.
+;; ESC cancels the current interaction, including an active minibuffer, like C-g.
+;; `keyboard-quit' only signals a quit, which leaves `M-x' showing [Quit].
 (global-set-key (kbd "<escape>") #'keyboard-escape-quit)
 
 (global-set-key (kbd "C-x C-b") #'ibuffer)   ; ibuffer, not the plain buffer list

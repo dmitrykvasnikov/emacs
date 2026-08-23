@@ -72,10 +72,6 @@
   ;; setting quietly does nothing.  find(1) prunes either way.
   (project-vc-ignores (mapcar (lambda (dir) (concat dir "/"))
                               dk/project-ignored-directories))
-  ;; Where the list of known projects is persisted (default: ~/.emacs.d/projects
-  ;; anyway, but named explicitly so it is obvious which file to delete when the
-  ;; list goes stale).
-  (project-list-file (expand-file-name "projects" user-emacs-directory))
   ;; Menu offered right after `project-switch-project'.
   (project-switch-commands '((project-find-file      "Find file")
                              (consult-project-buffer "Buffer")

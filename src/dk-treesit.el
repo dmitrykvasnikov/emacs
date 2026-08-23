@@ -51,13 +51,24 @@ most once per session."
    ((memq lang dk/treesit--attempted) nil)
    ((not (assq lang treesit-language-source-alist)) nil)
    (t
-    (push lang dk/treesit--attempted)
-    (message "treesit: building %s grammar, this takes a few seconds..." lang)
-    (ignore-errors (treesit-install-language-grammar lang))
-    (if (treesit-language-available-p lang)
-        (progn (message "treesit: %s grammar ready" lang) t)
-      (message "treesit: could not build the %s grammar" lang)
-      nil))))
+   (push lang dk/treesit--attempted)
+   (message "treesit: building %s grammar, this takes a few seconds..." lang)
+    (let (install-error)
+      (condition-case err
+          (treesit-install-language-grammar lang)
+        (error (setq install-error (error-message-string err))))
+      (cond
+       ((treesit-language-available-p lang)
+        (message "treesit: %s grammar ready" lang)
+        t)
+       (install-error
+        (message "treesit: could not build %s -- %s" lang install-error)
+        nil)
+       (t
+        ;; Emacs 30's installer catches its own errors and reports a warning, so
+        ;; there may be no Lisp error object to repeat here.
+        (message "treesit: could not build the %s grammar; see *Warnings*" lang)
+        nil))))))
 
 ;; Every ts mode gates itself on `treesit-ready-p', which makes that the one
 ;; place to hang first-use installation on -- third-party modes included.

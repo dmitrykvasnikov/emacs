@@ -10,8 +10,7 @@
 (use-package markdown-mode
   ;; GFM everywhere: tables, strikethrough, checkboxes, ``` fences
   :mode (("\\.md\\'"       . gfm-mode)
-         ("\\.markdown\\'" . gfm-mode)
-         ("README\\.md\\'" . gfm-mode))
+         ("\\.markdown\\'" . gfm-mode))
   ;; Soft wrapping and looser line spacing; see dk-functions.el.
   :hook (markdown-mode . dk/prose-display)
   :custom
@@ -71,10 +70,9 @@
   ;; Source blocks
   (org-src-fontify-natively t)                   ;; highlight a block in its own language
   (org-src-tab-acts-natively t)                  ;; TAB indents by that language's rules
-  ;; Between them: no indentation is added when leaving the C-c ' editor, and
-  ;; whatever indentation the block already has is written back untouched --
-  ;; which matters for Python and YAML blocks.
-  (org-edit-src-content-indentation 0)
+  ;; Keep existing indentation untouched when leaving the C-c ' editor, which
+  ;; matters for whitespace-sensitive Python and YAML blocks.  When this is
+  ;; non-nil, `org-edit-src-content-indentation' is deliberately ignored.
   (org-src-preserve-indentation t)
   ;; Editing behaviour
   (org-catch-invisible-edits 'show-and-error)    ;; never silently edit folded text

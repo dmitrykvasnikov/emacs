@@ -106,7 +106,6 @@
 (use-package which-key
   :ensure nil                           ; built-in since Emacs 30
   :defer 0                              ; load at idle, not on the startup path
-  :custom (which-key-idle-delay 1)      ; 1s of hesitation before the popup appears
   :config (which-key-mode))
 
 ;; Richer C-h: source, callers, current value, key bindings -- all in one buffer.
@@ -123,22 +122,20 @@
   :config
   ;; Dismiss the helpful window with C-g or ESC from wherever point happens to
   ;; be.  A binding in `helpful-mode-map' only fires once the helpful buffer is
-  ;; selected, and `dk/helpful-open' deliberately does not select it, so the
-  ;; quit commands themselves have to know about the window.
+  ;; selected, and `dk/helpful-open' normally does not select it, so the
+  ;; quit commands themselves have to know about the window.  On a frame too
+  ;; small to split, the documented fallback does select it and these advices
+  ;; still give both display paths the same dismissal keys.
   ;;
   ;; `:before-until' means the quit is swallowed only when a helpful window was
   ;; actually closed; with none up, C-g and ESC behave exactly as before.  C-g
   ;; at a prompt runs `minibuffer-keyboard-quit' rather than `keyboard-quit',
   ;; so aborting a minibuffer is untouched.  These live in `:config' because
   ;; helpful is autoloaded -- there can be no helpful window before it loads.
-  (define-advice keyboard-quit (:before-until () dk/dismiss-helpful)
-    "Close a visible helpful window instead of quitting."
-    (dk/helpful-dismiss))
-  (define-advice keyboard-escape-quit (:before-until () dk/dismiss-helpful)
-    "Close a visible helpful window instead of quitting.
-Also keeps `keyboard-escape-quit' from reaching its `delete-other-windows'
-branch, which would otherwise tear down unrelated splits."
-    (dk/helpful-dismiss)))
+  (advice-add 'keyboard-quit :before-until #'dk/helpful-dismiss)
+  ;; This also keeps `keyboard-escape-quit' from reaching its
+  ;; `delete-other-windows' branch and tearing down unrelated splits.
+  (advice-add 'keyboard-escape-quit :before-until #'dk/helpful-dismiss))
 
 (provide 'dk-ui)
 ;;; dk-ui.el ends here

@@ -8,6 +8,8 @@
 (require 'dk-vars)                      ; `dk/project-ignored-directories'
 (require 'dk-functions)                 ; `dk/consult-line-repeat'
 
+(defvar comint-mode-map)
+
 ;; TAB completes when the line is already indented; this is the single place
 ;; `tab-always-indent' is set (corfu/embark both want the `complete' value).
 (setq tab-always-indent 'complete)
@@ -137,18 +139,11 @@
          ;; other minibuffer keymap, so this one entry covers all prompts.
          :map minibuffer-local-map
          ("C-r"     . consult-history))
-  :custom
-  ;; Preview on any key that moves the selection, rather than only on an
-  ;; explicit M-. -- so walking the candidate list shows each buffer/line/file.
-  (consult-preview-key 'any)
-  ;; Report line numbers counted from the start of the file even in a narrowed
-  ;; buffer, so they match what the compiler or git says.
-  (consult-line-numbers-widen t)
   :config
   ;; Keep eglot's own buffers out of the buffer list.  This lived in
   ;; `projectile-globally-ignored-buffers' before; project.el has no
   ;; equivalent, and consult is what actually lists buffers here.
-  (add-to-list 'consult-buffer-filter "\\`EGLOT")
+  (add-to-list 'consult-buffer-filter "\\`\\*EGLOT")
   ;; Build directories kept out of C-x p g as well, matching what project.el
   ;; hides from C-x p f (see `dk/project-ignored-directories').  rg already
   ;; reads .gitignore, so this only bites in the projects that do not ignore
@@ -159,10 +154,9 @@
   ;; `ensure-list' because the variable is documented as a string *or* a list;
   ;; it is a string today, and `consult--build-args' accepts either, so going
   ;; through a list keeps this working if that default is ever changed.
-  (setq consult-ripgrep-args
-        (append (ensure-list consult-ripgrep-args)
-                (mapcar (lambda (dir) (format "--glob=!%s" dir))
-                        dk/project-ignored-directories))))
+  (setq consult-ripgrep-args (ensure-list consult-ripgrep-args))
+  (dolist (dir dk/project-ignored-directories)
+    (add-to-list 'consult-ripgrep-args (format "--glob=!%s" dir) t)))
 
 ;; The other half of the C-r story: shells and REPLs keep a real history too.
 ;; Kept outside the `use-package' above because that block only runs once consult
@@ -199,17 +193,10 @@
   :custom
   (corfu-cycle t)                   ;; TAB past the last candidate wraps to the first
   (corfu-auto t)                    ;; pop up while typing, no need to hit TAB
-  (corfu-auto-delay 0.2)            ;; seconds of idle before it appears
   (corfu-auto-prefix 2)             ;; ...and only after 2 characters
   (corfu-popupinfo-delay 0.5)       ;; idle before the docs pane opens beside it
   (corfu-preview-current t)         ;; show the selected candidate inline in the buffer
-  (corfu-on-exact-match nil)        ;; a single exact match still waits for confirmation
-  ;; Quit when point moves past a word boundary -- unless the boundary was typed
-  ;; as the separator below, which is how a multi-word orderless filter is
-  ;; entered without the popup closing on the space.
-  (corfu-quit-at-boundary 'separator)
   (corfu-quit-no-match t)           ;; nothing matches -> get out of the way
-  (corfu-separator ?\s)             ;; space separates orderless components
   (corfu-scroll-margin 5)           ;; context rows kept visible while scrolling
   (corfu-preselect :first)          ;; first candidate selected, so RET takes it
   :bind
@@ -233,10 +220,9 @@
   ;; -- and cape-dabbrev matches the trailing word of a path and answers first,
   ;; which meant file completion almost never fired.
   (add-hook 'completion-at-point-functions #'cape-file -10)
-  (add-hook 'completion-at-point-functions #'cape-dabbrev -5)
-  ;; Don't offer buffer words until 3 characters are typed -- below that the
-  ;; candidate list is noise.
-  :custom (cape-dabbrev-min-length 3))
+  ;; The named wrapper keeps this idempotent when the module is reloaded and
+  ;; suppresses noisy dabbrev candidates until 3 characters have been typed.
+  (add-hook 'completion-at-point-functions #'dk/cape-dabbrev -5))
 
 ;; Kind of each candidate (function, variable, class, ...) in the corfu margin,
 ;; taken from the CAPF's `:company-kind'.  Only one margin formatter may be

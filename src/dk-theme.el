@@ -8,10 +8,6 @@
 (require 'dk-vars)                      ; `dk/theme'
 (require 'dk-functions)                 ; `dk/sync-orderless'
 
-;; Load any theme without the "this theme may run arbitrary code, mark it safe?"
-;; prompt.  Themes here come from ELPA and themes/, all of them known.
-(setq custom-safe-themes t)
-
 ;; `:defer t' throughout.  A theme package does not need to be *loaded* for
 ;; `load-theme' or `consult-theme' to find its themes: `custom-theme-load-path'
 ;; defaults to (custom-theme-directory t), where t stands for `load-path', and
@@ -33,7 +29,9 @@
 
 (add-hook 'enable-theme-functions #'dk/theme-enabled)
 
-;; Extra themes live in themes/, added to `custom-theme-load-path' by init.el
+;; Extra themes live in themes/, added to `custom-theme-load-path' by init.el.
+;; This explicitly trusted startup load does not broaden trust to other callers;
+;; consult-theme likewise passes NO-CONFIRM for its live previews.
 (load-theme dk/theme t)
 
 (provide 'dk-theme)

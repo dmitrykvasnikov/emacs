@@ -2,6 +2,7 @@ eln-cache/
 elpa/
 transient/
 tree-sitter/
+backups/
 auto-save-list
 custom.el
 history

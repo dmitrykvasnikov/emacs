@@ -62,9 +62,12 @@
   ;; covers the part of that which used to look like broken navigation.
   (setq eglot-autoshutdown t)
   ;; Haskell servers wrap their docs in ```haskell fences; strip them so the
-  ;; eldoc buffer shows plain text.
-  (advice-add 'eglot--format-markup
-              :filter-args #'dk/eglot-clean-haskell-markdown))
+  ;; eldoc buffer shows plain text.  The formatter is private and Eglot has no
+  ;; public transformation hook, so guard it to keep a future rename from
+  ;; breaking configuration loading.
+  (when (fboundp 'eglot--format-markup)
+    (advice-add 'eglot--format-markup
+                :filter-args #'dk/eglot-clean-haskell-markdown)))
 
 ;; NOTE: `eglot-put-doc-in-buffer' and `eglot-code-actions-indications' were
 ;; set here before, but neither exists in the eglot shipped with Emacs 30.2 —
@@ -101,15 +104,10 @@
               ("M-n" . flymake-goto-next-error)
               ("M-p" . flymake-goto-prev-error))
   :config
-  (setq flymake-no-changes-timeout 0.5) ; recheck after 0.5s idle
-  (setq flymake-start-on-flymake-mode t) ; check immediately, don't wait for an edit
-  (setq flymake-start-on-save-buffer t)  ; and again on every save
-
   ;; Diagnostics are marked in the left fringe.  The bitmaps below replace the
   ;; stock arrow/dot glyphs with plain vertical bars of decreasing width:
   ;; 3px for an error, 2px for a warning, 1px for a note.  Each bitmap is one
   ;; row and '(center repeated) tiles it down the height of the line.
-  (setq flymake-fringe-indicator-position 'left-fringe)
   (define-fringe-bitmap 'flymake-error-indicator
     [#b11100000] nil nil '(center repeated))
   (define-fringe-bitmap 'flymake-warning-indicator
@@ -121,7 +119,7 @@
 ;; Formatting on save.  apheleia is the *only* formatter: `apheleia-mode-alist'
 ;; already covers every mode used here, ts modes included, and the per-language
 ;; `before-save-hook' formatters that used to sit alongside it in
-;; dk-languages.el (gofmt, clang-format) plus `rustic-format-on-save' were all
+;; dk-languages.el (gofmt, clang-format) plus Rustic's own formatter were all
 ;; running a second time over the same buffer.
 (use-package apheleia
   :init (apheleia-global-mode +1)

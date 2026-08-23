@@ -13,6 +13,9 @@ replacement through `file-name-directory' before appending the mangled
 name -- without the slash the last component is read as a file name and
 dropped, and every auto-save lands in `user-emacs-directory' instead.")
 
+(defvar dk/backup-directory (expand-file-name "backups/" user-emacs-directory)
+  "Directory where numbered backup versions of local files are kept.")
+
 (defvar dk/font-family "Iosevka"
   "Font family used for the default and minibuffer faces.
 Must be a family that ships programming ligatures, or the `ligature'

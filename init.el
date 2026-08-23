@@ -1,6 +1,10 @@
 ;; -*- lexical-binding: t; -*-
 ;;; init.el --- Entry point: load paths, custom file, module list
 
+(declare-function dk/add-to-confdir "early-init" (relative-path))
+(declare-function dk/add-paths-to-list "early-init"
+                  (list-var paths &optional expand-p))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; User identity.  Read by anything that has to sign work as coming from a
 ;; person: magit/VC commit authorship, message-mode, org export, gnus.
@@ -22,9 +26,11 @@
 
 ;; Keep the customize interface out of this file: anything set through `M-x
 ;; customize' is written to custom.el instead of being appended here.  That file
-;; is git-ignored, and package.el also maintains `package-selected-packages' in
-;; it.  Loading it has to happen before the modules, so a customised value is in
-;; place by the time a module reads it.
+;; is git-ignored.  It is loaded before the modules chiefly so that values for
+;; the `dk/*' variables, which are defined with `defvar', win over their defaults.
+;; Options set explicitly by a module -- in a `use-package :custom' clause, for
+;; example -- remain source-controlled and intentionally take precedence over
+;; custom.el.
 (setopt custom-file (locate-user-emacs-file "custom.el"))
 (when (file-exists-p custom-file)
   (load custom-file nil t))
@@ -68,14 +74,11 @@
     "dk-keymap")
   "Configuration modules in src/, loaded in this order.")
 
-;; A module that fails is reported and skipped, so one broken file cannot
-;; leave Emacs half-configured without saying why.
+;; Fail fast.  Continuing after a module errors leaves any side effects from the
+;; first half of that module in place and makes failures in later modules much
+;; harder to diagnose.
 (dolist (module dk/modules)
-  (condition-case err
-      (load (dk/add-to-confdir (concat "src/" module)) nil t)
-    (error
-     (message "Config: error loading %s -- %s"
-              module (error-message-string err)))))
+  (load (dk/add-to-confdir (concat "src/" module)) nil t))
 
 (provide 'init)
 ;;; init.el ends here

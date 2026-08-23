@@ -7,7 +7,9 @@
 ;; This file only holds what differs per language.
 
 (require 'treesit)                      ; `treesit-ready-p' in `dk/haskell-toggle-ts'
-(require 'dk-functions)                 ; `dk/haskell-disable-doc-mode'
+(require 'dk-functions)
+
+(defvar eglot-server-programs)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LSP servers
@@ -27,8 +29,7 @@
                     :initializationOptions (:check (:command "clippy")))))
   (add-to-list 'eglot-server-programs
                '((c-ts-mode c-mode c++-ts-mode c++-mode)
-                 . ("clangd" "--clang-tidy"
-                    :initializationOptions (:fallbackFlags ["-std=c23"])))))
+                 . ("clangd" "--clang-tidy"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Haskell -- haskell-mode by default, haskell-ts-mode on demand
@@ -39,9 +40,6 @@
 ;; `-*- mode: haskell-ts -*-' cookie pins one file for good.
 (use-package haskell-mode
   :mode ("\\.hs\\'" . haskell-mode)
-  :hook ((haskell-mode . haskell-indentation-mode)
-         ;; haskell-doc-mode fights with eglot/eldoc over the echo area
-         (haskell-mode . dk/haskell-disable-doc-mode))
   :bind (:map haskell-mode-map
               ("C-c C-l" . haskell-process-load-file)    ; load this file into the repl
               ("C-c C-z" . haskell-interactive-switch)   ; jump to the repl buffer
@@ -54,7 +52,6 @@
   :defer t
   :custom
   (haskell-ts-use-indent t)             ; nil upstream -- no indent rules at all
-  (haskell-ts-font-lock-level 4)        ; every feature the grammar defines
   :bind (:map haskell-ts-mode-map
               ;; Mirror the haskell-mode keys above where an equivalent exists.
               ;; This mode drives a bare ghci, not a cabal repl.
@@ -109,12 +106,15 @@ buffers already open."
 (use-package rustic
   :mode ("\\.rs\\'" . rustic-mode)
   :hook (rustic-mode . eglot-ensure)
+  :init
+  ;; The hook above is the single owner of Eglot startup.  Rustic otherwise
+  ;; installs `rustic-setup-lsp', which calls `eglot-ensure' a second time.
+  (setq rustic-lsp-setup-p nil)
   :custom
   ;; rustic would otherwise start lsp-mode, which is not installed here.
   (rustic-lsp-client 'eglot)
-  ;; Formatting is apheleia's job (rust-ts-mode -> rustfmt).  Leaving this on
-  ;; ran rustfmt twice per save.
-  (rustic-format-on-save nil))
+  ;; Formatting is apheleia's job (rust-ts-mode -> rustfmt).
+  (rustic-format-trigger nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Go -- go-ts-mode is built in but ships no `auto-mode-alist' entry, so
@@ -133,7 +133,8 @@ buffers already open."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; C / C++ -- c-ts-mode does NOT derive from c-mode, so anything that used to
 ;; hang off `c-mode-hook' has to be re-pointed at the ts modes.  Formatting is
-;; apheleia's, gated on a .clang-format by `dk/no-clang-format-p'.
+;; apheleia's, gated on .clang-format or _clang-format by
+;; `dk/no-clang-format-p'.
 (use-package c-ts-mode
   :ensure nil                           ; built-in
   :defer t

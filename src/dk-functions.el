@@ -12,6 +12,9 @@
 ;; just keeps the byte-compiler quiet about it.
 (declare-function org-at-table-p "org" (&optional table-type))
 (declare-function org-table-copy-down "org-table" (n))
+(declare-function cape-dabbrev "cape" (&optional interactive))
+(declare-function dk/add-to-confdir "../early-init" (relative-path))
+(declare-function eglot-managed-p "eglot" ())
 
 ;; Display statistics @startup
 (defun dk/display-startup-time ()
@@ -45,16 +48,23 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Helpful helpers
 (defun dk/helpful-open (buf)
-  "Display helpful buffer BUF in a split, without leaving the current window.
+  "Display helpful buffer BUF in a split when the frame has room.
 If the current window has full frame width, split right; otherwise split
-below.  Point stays where it was, so the docs can be read and dismissed
-without ever moving into them -- see `dk/helpful-dismiss'.
+below.  Point stays where it was when a split succeeds, so the docs can be
+read and dismissed without moving into them.  If the frame is too small to
+split, use the current window instead of raising an error.  See
+`dk/helpful-dismiss'.
 `helpful-switch-buffer-function' is called after `helpful-update' has
 already run inside BUF, and its return value is discarded, so declining
 to select the new window is safe."
-  (set-window-buffer
-   (if (window-full-width-p) (split-window-right) (split-window-below))
-   buf))
+  (let ((win (condition-case nil
+                 (if (window-full-width-p)
+                     (split-window-right)
+                   (split-window-below))
+               (error nil))))
+    (if win
+        (set-window-buffer win buf)
+      (switch-to-buffer buf))))
 
 (defun dk/helpful-window ()
   "Return a live window showing a `helpful-mode' buffer, or nil."
@@ -132,26 +142,28 @@ or consult has not been loaded yet."
   (interactive)
   (consult-line (car (bound-and-true-p consult--line-history))))
 
+(defun dk/cape-dabbrev ()
+  "Complete words from buffers after at least three characters.
+This is the named, reload-safe equivalent of wrapping `cape-dabbrev'
+with `cape-capf-prefix-length'."
+  (pcase (cape-dabbrev)
+    (`(,beg ,end ,table . ,plist)
+     (when (>= (- end beg) 3)
+       `(,beg ,end ,table :company-prefix-length t ,@plist)))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Language hooks
 (defun dk/no-clang-format-p ()
-  "Non-nil in a C/C++ buffer whose tree carries no .clang-format.
+  "Non-nil in a C/C++ buffer whose tree carries no clang-format file.
 Used from `apheleia-inhibit-functions'.  Without it apheleia would
 reformat every C buffer to clang-format's built-in LLVM style; the
 per-buffer `before-save-hook' this replaced was conditional in the same
-way.  Both the ts and the classic modes are listed because `c-ts-mode'
-does not derive from `c-mode'."
+way.  Both .clang-format and _clang-format are recognised, matching the
+clang-format binary.  The ts and classic modes are both listed because
+`c-ts-mode' does not derive from `c-mode'."
   (and (derived-mode-p '(c-ts-mode c++-ts-mode c-mode c++-mode))
-       (not (locate-dominating-file default-directory ".clang-format"))))
-
-(defun dk/haskell-disable-doc-mode ()
-  "Turn off `haskell-doc-mode', it fights with eglot/eldoc over the echo area.
-Guarded rather than called outright: `haskell-doc-mode' is autoloaded, so
-in a buffer where it was never switched on -- `haskell-ts-mode', which
-does not enable it -- calling the command would load the haskell-doc
-library just to turn a mode off that was already off."
-  (when (bound-and-true-p haskell-doc-mode)
-    (haskell-doc-mode -1)))
+       (not (or (locate-dominating-file default-directory ".clang-format")
+                (locate-dominating-file default-directory "_clang-format")))))
 
 (defun dk/eglot-clean-haskell-markdown (args)
   "Safely strip Haskell code fences from Eglot markup data in ARGS."
@@ -167,6 +179,11 @@ library just to turn a mode off that was already off."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Waiting for eglot before an xref jump
+(defun dk/eglot-managed-p ()
+  "Non-nil when Eglot is loaded and manages the current buffer."
+  (and (fboundp 'eglot-managed-p)
+       (eglot-managed-p)))
+
 (defun dk/eglot-expected-p ()
   "Non-nil when this buffer's major mode is set up to start Eglot.
 Walks the mode's parents, so a mode whose `eglot-ensure' hook sits on a
@@ -193,16 +210,16 @@ Waiting here rather than raising `eglot-sync-connect' keeps visiting a
 file instant and pays the cost only on the jump that needs it.  Erroring
 out afterwards is deliberate: in a mode that has an LSP server the etags
 fallback has nothing useful to offer."
-  ;; `eglot--managed-mode' first: one buffer-local variable read short-circuits
-  ;; every jump in a connected buffer, which is all of them after the first.
-  (when (and (not (bound-and-true-p eglot--managed-mode))
+  ;; The managed check short-circuits every jump in a connected buffer, which
+  ;; is all of them after the first.
+  (when (and (not (dk/eglot-managed-p))
              (dk/eglot-expected-p))
     (with-delayed-message (1 "Waiting for the language server...")
       (let ((deadline (+ (float-time) dk/eglot-connect-wait)))
-        (while (and (not (bound-and-true-p eglot--managed-mode))
+        (while (and (not (dk/eglot-managed-p))
                     (< (float-time) deadline))
           (accept-process-output nil 0.05))))
-    (unless (bound-and-true-p eglot--managed-mode)
+    (unless (dk/eglot-managed-p)
       (user-error "No language server in this buffer yet; try M-x eglot"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

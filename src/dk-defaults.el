@@ -4,14 +4,24 @@
 ;;
 ;; Everything here is about *how editing behaves*; how it looks is in ui.el.
 
-(require 'dk-vars)                      ; `dk/auto-save-directory'
+(require 'dk-vars)                      ; auto-save and backup directories
 
 (setq use-short-answers t)              ; y/n instead of typing out yes/no
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Files, backups and auto-save
-(setq make-backup-files nil)            ; no foo~ next to the file
-(setq create-lockfiles nil)             ; no .#foo (they confuse file watchers)
+(setq create-lockfiles t)               ; warn when another Emacs edits the same file
+
+;; Keep three numbered backups per local file in one git-ignored directory.
+;; The regexp matches ordinary absolute paths but not TRAMP names such as
+;; /ssh:host:/path, so remote files retain Emacs' normal backup behaviour.
+(make-directory dk/backup-directory t)
+(setq make-backup-files t
+      backup-directory-alist `(("\\`/[^/:]+/" . ,dk/backup-directory))
+      version-control t
+      kept-new-versions 3
+      kept-old-versions 0
+      delete-old-versions t)
 
 ;; Auto-save recovery files (#foo#) still exist -- they are what `M-x
 ;; recover-this-file' reads after a crash -- but they are all collected in

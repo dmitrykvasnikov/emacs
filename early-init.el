@@ -40,6 +40,7 @@
 ;; Native compilation happens in the background for every package that has not
 ;; been compiled yet.  'silent still logs warnings to *Warnings*, it just stops
 ;; the buffer from popping up over whatever is being edited.
+(defvar native-comp-async-report-warnings-errors) ; defined lazily by comp-run.el
 (setq native-comp-async-report-warnings-errors 'silent)
 
 ;; Collapse every installed package's autoloads into one preloaded file
@@ -51,4 +52,3 @@
 ;; No flicker: never create these, rather than creating and removing them.
 (push '(menu-bar-lines . 0)   default-frame-alist)
 (push '(tool-bar-lines . 0)   default-frame-alist)
-

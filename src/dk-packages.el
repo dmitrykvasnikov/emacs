@@ -20,9 +20,14 @@
 (require 'package)
 
 (setq package-archives '(("melpa"  . "https://melpa.org/packages/")
-                         ("org"    . "https://orgmode.org/elpa/")
                          ("elpa"   . "https://elpa.gnu.org/packages/")
                          ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
+
+;; Prefer stable official archives when the same package exists in more than
+;; one place.  Packages available only from MELPA are unaffected.
+(setq package-archive-priorities '(("elpa"   . 30)
+                                   ("nongnu" . 20)
+                                   ("melpa"  . 10)))
 
 ;; No eager `package-refresh-contents' either: it is a blocking network call on
 ;; the startup path, and `use-package-ensure-elpa' already refreshes and retries

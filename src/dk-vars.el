@@ -16,13 +16,22 @@ dropped, and every auto-save lands in `user-emacs-directory' instead.")
 (defvar dk/backup-directory (expand-file-name "backups/" user-emacs-directory)
   "Directory where numbered backup versions of local files are kept.")
 
+(defvar dk/font-families
+  '("Aporetic Sans Mono"
+    "Iosevka"
+    "0xProto Nerd Font Mono"
+    "IBM Plex Mono"
+    "VictorMono Nerd Font Mono")
+  "Font families offered by `dk/change-font'.
+Each string must be the exact family name that Emacs reports in
+`font-family-list'.")
+
 (defvar dk/font-family "Iosevka"
-  "Font family used for the default and minibuffer faces.
-Must be a family that ships programming ligatures, or the `ligature'
-setup in dk-ui.el has nothing to compose: Emacs only asks HarfBuzz to
-apply the font's own `calt'/`liga' features, it cannot invent glyphs.
-Aporetic Sans Mono, the previous value, is a fork of this font whose
-monospaced cuts are built with those OpenType features stripped.")
+  "Font family used by the global `default' face.
+`dk/change-font' updates this value when the font is changed for the
+current Emacs session.  Fonts without programming ligatures still work,
+but the `ligature' setup in dk-ui.el cannot invent glyphs absent from the
+font.  In particular, Aporetic Sans Mono omits those OpenType features.")
 
 (defvar dk/font-height 115
   "Height (1/10 pt) of the `default' face.")

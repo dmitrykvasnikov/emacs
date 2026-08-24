@@ -6,7 +6,7 @@
 ;; named (instead of inline lambdas) means a hook can be removed again and a
 ;; module can be re-loaded without stacking duplicates.
 
-(require 'dk-vars)                      ; `dk/eglot-connect-wait'
+(require 'dk-vars)                      ; shared command and hook settings
 
 ;; Called only under a `derived-mode-p' guard, so org is loaded by then; this
 ;; just keeps the byte-compiler quiet about it.
@@ -15,6 +15,10 @@
 (declare-function cape-dabbrev "cape" (&optional interactive))
 (declare-function dk/add-to-confdir "../early-init" (relative-path))
 (declare-function eglot-managed-p "eglot" ())
+(declare-function face-remap-remove-relative "face-remap" (cookie))
+
+(defvar-local dk/font-remap-cookie nil
+  "Cookie for the font remapping installed by `dk/change-font'.")
 
 ;; Display statistics @startup
 (defun dk/display-startup-time ()
@@ -103,6 +107,42 @@ recompile even the files whose .elc is already current."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Commands
+(defun dk/change-font ()
+  "Choose a configured font for this session or the current buffer.
+Candidates come from `dk/font-families'.  Before changing anything,
+verify that the selected family is available to the current graphical
+frame.  A session-wide change affects every existing frame and frames
+created later; a buffer-local change follows the buffer between windows."
+  (interactive)
+  (unless (display-graphic-p)
+    (user-error "Fonts can only be changed from a graphical frame"))
+  (let* ((buffer (current-buffer))
+         (family (completing-read "Font: " dk/font-families nil t
+                                  nil nil dk/font-family)))
+    (unless (find-font (font-spec :family family))
+      (user-error "Font family `%s' is not installed" family))
+    (pcase (car (read-multiple-choice
+                 (format "Use %s for: " family)
+                 '((?g "global" "all frames for this Emacs session")
+                   (?b "buffer" "the current buffer only"))))
+      (?g
+       (set-face-attribute 'default nil :family family)
+       (setq dk/font-family family)
+       ;; Otherwise a previous buffer-only choice would hide the new global
+       ;; font in the buffer from which this command was invoked.
+       (with-current-buffer buffer
+         (when dk/font-remap-cookie
+           (face-remap-remove-relative dk/font-remap-cookie)
+           (setq dk/font-remap-cookie nil)))
+       (message "Using %s globally for this Emacs session" family))
+      (?b
+       (with-current-buffer buffer
+         (when dk/font-remap-cookie
+           (face-remap-remove-relative dk/font-remap-cookie))
+         (setq dk/font-remap-cookie
+               (face-remap-add-relative 'default `(:family ,family))))
+       (message "Using %s in buffer %s" family (buffer-name buffer))))))
+
 (defun dk/M-x-dwim ()
   "Run M-x as normal, unless the minibuffer is active, but not selected"
   (interactive)

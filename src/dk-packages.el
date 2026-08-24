@@ -36,12 +36,12 @@
 ;; use-package itself is built in since Emacs 29, so there is nothing to install.
 (require 'use-package)
 
-;; Do not perform network installs while loading the configuration.  Run
-;; `M-x dk/install-packages' (or the documented batch command) explicitly when
-;; setting up a new machine.  Built-in packages (eglot, dired, org, flymake,
-;; recentf, which-key, ...) pass `:ensure nil'; the other packages are listed
-;; below for the explicit bootstrap command.
-(setq use-package-always-ensure nil)
+;; Install missing third-party packages before their declarations are
+;; evaluated.  This is essential on a fresh clone: eager `:init' forms such as
+;; `(vertico-mode)' and `(global-corfu-mode)' otherwise run before their
+;; packages have supplied the corresponding autoloads.  Built-in packages pass
+;; `:ensure nil' in their declarations and are therefore never downloaded.
+(setq use-package-always-ensure t)
 
 (defconst dk/package-list
   '(apheleia cape clang-format consult corfu diff-hl diredfl doom-modeline
@@ -54,7 +54,8 @@
 (defun dk/install-packages (&optional refresh)
   "Install missing packages from `dk/package-list'.
 With a prefix argument, refresh package archive contents first.  This command
-is intentionally explicit so normal startup never performs network I/O."
+installs the complete set up front; normal startup also installs each missing
+package when its `use-package' declaration is evaluated."
   (interactive "P")
   (when (or refresh (not package-archive-contents))
     (package-refresh-contents))

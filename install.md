@@ -1,8 +1,9 @@
 # External software required by this config
 
 Everything **outside Emacs** that this configuration expects to find on the
-system. Emacs packages are installed explicitly with `M-x dk/install-packages`
-(`src/dk-packages.el`) so ordinary startup does not perform network I/O.
+system. Missing Emacs packages install automatically on startup through
+`use-package` (`src/dk-packages.el`); `M-x dk/install-packages` remains
+available when you want to install the complete set explicitly.
 
 Every entry names the configuration file that needs it, so anything belonging
 to a language you don't use can be dropped.  Exact line numbers are omitted so
@@ -275,9 +276,10 @@ source file never downloads or compiles a grammar implicitly.
 
 ## 9. Post-install inside Emacs
 
-1. **Install the ELPA/MELPA packages** with `M-x dk/install-packages`.
-   Use a prefix argument to refresh archive contents first.  For a fresh clone
-   whose configuration cannot yet start, run:
+1. **ELPA/MELPA packages install automatically on first launch.** Expect that
+   launch to take longer while package.el refreshes the archives and downloads
+   the packages.  To install the complete set before an interactive launch,
+   run:
    ```bash
    emacs --batch --init-directory="$HOME/.config/emacs" \
      --load src/dk-packages.el \

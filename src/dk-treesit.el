@@ -37,46 +37,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Installing them
-(defvar dk/treesit--attempted nil
-  "Languages already auto-built this session, successfully or not.
-Stops a grammar that fails to compile from being retried in every
-buffer that asks for it.")
-
-(defun dk/treesit-ensure (lang)
-  "Make the tree-sitter grammar for LANG usable, building it if missing.
-Returns non-nil when LANG can be used.  Each language is attempted at
-most once per session."
-  (cond
-   ((treesit-language-available-p lang) t)
-   ((memq lang dk/treesit--attempted) nil)
-   ((not (assq lang treesit-language-source-alist)) nil)
-   (t
-   (push lang dk/treesit--attempted)
-   (message "treesit: building %s grammar, this takes a few seconds..." lang)
-    (let (install-error)
-      (condition-case err
-          (treesit-install-language-grammar lang)
-        (error (setq install-error (error-message-string err))))
-      (cond
-       ((treesit-language-available-p lang)
-        (message "treesit: %s grammar ready" lang)
-        t)
-       (install-error
-        (message "treesit: could not build %s -- %s" lang install-error)
-        nil)
-       (t
-        ;; Emacs 30's installer catches its own errors and reports a warning, so
-        ;; there may be no Lisp error object to repeat here.
-        (message "treesit: could not build the %s grammar; see *Warnings*" lang)
-        nil))))))
-
-;; Every ts mode gates itself on `treesit-ready-p', which makes that the one
-;; place to hang first-use installation on -- third-party modes included.
-;; Batch sessions are left alone, so byte-compiling never shells out to git.
-(define-advice treesit-ready-p (:before (lang &rest _) dk/auto-install)
-  "Build a missing grammar for LANG the first time it is asked for."
-  (unless noninteractive
-    (dk/treesit-ensure lang)))
+;; Grammar installation is deliberately explicit.  Opening a source file must
+;; not unexpectedly start Git, download code, or compile a C grammar in the
+;; foreground.  Use `M-x dk/treesit-install-all' when setting up a machine.
 
 (defun dk/treesit-install-all (&optional force)
   "Install every grammar in `treesit-language-source-alist'.

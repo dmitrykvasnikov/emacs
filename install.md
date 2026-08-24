@@ -1,9 +1,8 @@
 # External software required by this config
 
 Everything **outside Emacs** that this configuration expects to find on the
-system. Emacs packages are not listed: `use-package` has
-`use-package-always-ensure t` (`src/dk-packages.el`), so the ~35 ELPA/MELPA
-packages install themselves on first launch.
+system. Emacs packages are installed explicitly with `M-x dk/install-packages`
+(`src/dk-packages.el`) so ordinary startup does not perform network I/O.
 
 Every entry names the configuration file that needs it, so anything belonging
 to a language you don't use can be dropped.  Exact line numbers are omitted so
@@ -269,18 +268,23 @@ Twelve grammars: `bash` `c` `cmake` `cpp` `dockerfile` `go` `gomod` `haskell`
 Build requirements: `git`, `gcc`, `g++`, `make` — all from `base-devel`.
 Network access to github.com.
 
-You do **not** need to do this by hand: `dk/treesit-ensure`
-(`src/dk-treesit.el`) is advised onto `treesit-ready-p`, so the first buffer
-that wants a grammar builds it, once per session. `M-x dk/treesit-install-all`
-does the whole set up front.
+`M-x dk/treesit-install-all` installs the grammars explicitly.  Opening a
+source file never downloads or compiles a grammar implicitly.
 
 ---
 
 ## 9. Post-install inside Emacs
 
-1. **First launch downloads ~35 ELPA/MELPA packages** (plus dependencies).
-   Needs working network and TLS. Expect a slow first start; after that
-   `package-quickstart` (`early-init.el`) keeps startup around half a second.
+1. **Install the ELPA/MELPA packages** with `M-x dk/install-packages`.
+   Use a prefix argument to refresh archive contents first.  For a fresh clone
+   whose configuration cannot yet start, run:
+   ```bash
+   emacs --batch --init-directory="$HOME/.config/emacs" \
+     --load src/dk-packages.el \
+     --eval '(dk/install-packages t)'
+   ```
+   After that, `package-quickstart` (`early-init.el`) keeps startup around
+   half a second.
 
 2. **Tree-sitter grammars** — `M-x dk/treesit-install-all`
    (`C-u` prefix rebuilds ones already present).
@@ -294,7 +298,11 @@ does the whole set up front.
    mkdir -p ~/org
    ```
 
-5. **Optional:** `M-x dk/recompile-config` byte-compiles `src/`
+5. **Optional:** install a spell checker such as `aspell`, then set
+   `ispell-program-name` if needed; Markdown and Org buffers enable Flyspell
+   automatically when the checker is available.
+
+6. **Optional:** `M-x dk/recompile-config` byte-compiles `src/`
    (`src/dk-functions.el`). Not required — `load-prefer-newer` is `t`, so a
    stale `.elc` is ignored rather than loaded.
 
@@ -315,7 +323,7 @@ Listed so as not to over-install.
 | `libvterm` | no terminal emulator package in this config |
 | `git-delta`, `difftastic` | magit needs nothing beyond `git` |
 | `sqlite`, `graphviz`, LaTeX | no org-roam, no org-babel graphing, no LaTeX export configured |
-| `aspell` / `hunspell` | no spellchecker configured. Worth adding for the prose modes, but nothing currently calls one. |
+| `aspell` / `hunspell` | optional spell checker for Markdown and Org; Flyspell activates when one is available (`src/dk-writing.el`) |
 | `python` | no Python mode or grammar configured |
 | `exec-path-from-shell` | only needed if Emacs is launched from a desktop launcher with a different `PATH` — see the note in §11 |
 

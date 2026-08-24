@@ -36,11 +36,32 @@
 ;; use-package itself is built in since Emacs 29, so there is nothing to install.
 (require 'use-package)
 
-;; Install missing packages automatically.  Built-in packages (eglot, dired,
-;; org, flymake, recentf, which-key, ...) must therefore pass `:ensure nil',
-;; otherwise package.el tries to fetch them from an archive that has no such
-;; package.
-(setq use-package-always-ensure t)
+;; Do not perform network installs while loading the configuration.  Run
+;; `M-x dk/install-packages' (or the documented batch command) explicitly when
+;; setting up a new machine.  Built-in packages (eglot, dired, org, flymake,
+;; recentf, which-key, ...) pass `:ensure nil'; the other packages are listed
+;; below for the explicit bootstrap command.
+(setq use-package-always-ensure nil)
+
+(defconst dk/package-list
+  '(apheleia cape clang-format consult corfu diff-hl diredfl doom-modeline
+    doom-themes ef-themes embark embark-consult expand-region gruvbox-theme
+    haskell-mode haskell-ts-mode helpful ligature magit marginalia markdown-mode
+    nerd-icons nerd-icons-corfu nerd-icons-dired orderless org-appear org-modern
+    rainbow-delimiters rustic rust-mode spacemacs-theme valign vertico)
+  "Third-party packages used by this configuration.")
+
+(defun dk/install-packages (&optional refresh)
+  "Install missing packages from `dk/package-list'.
+With a prefix argument, refresh package archive contents first.  This command
+is intentionally explicit so normal startup never performs network I/O."
+  (interactive "P")
+  (when (or refresh (not package-archive-contents))
+    (package-refresh-contents))
+  (dolist (package dk/package-list)
+    (unless (package-installed-p package)
+      (package-install package)))
+  (message "Package bootstrap complete"))
 
 (provide 'dk-packages)
 ;;; dk-packages.el ends here

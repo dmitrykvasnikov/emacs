@@ -34,7 +34,9 @@
                     orderless-match-face-1
                     orderless-match-face-2
                     orderless-match-face-3))
-      (set-face-attribute face nil :foreground fg :background 'unspecified :underline t))))
+      (when (facep face)
+        (set-face-attribute face nil :foreground fg
+                            :background 'unspecified :underline t)))))
 
 ;; Mouse support on a terminal frame.  Called from `tty-setup-hook' rather than
 ;; unconditionally at startup: `xterm-mouse-mode' does nothing under a GUI, and

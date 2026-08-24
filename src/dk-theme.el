@@ -25,9 +25,17 @@
 (defun dk/theme-enabled (theme)
   "Re-apply face tweaks that depend on the colours of THEME."
   (message "Theme enabled: %s" theme)
-  (dk/sync-orderless))
+  ;; Orderless is optional during a partial or offline installation.  Its
+  ;; faces do not exist until the package has been loaded.
+  (when (featurep 'orderless)
+    (dk/sync-orderless)))
 
 (add-hook 'enable-theme-functions #'dk/theme-enabled)
+
+;; If Orderless is loaded after the initial theme, apply the same face tweaks
+;; once its faces have been defined.
+(with-eval-after-load 'orderless
+  (dk/sync-orderless))
 
 ;; Extra themes live in themes/, added to `custom-theme-load-path' by init.el.
 ;; This explicitly trusted startup load does not broaden trust to other callers;

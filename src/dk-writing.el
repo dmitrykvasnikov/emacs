@@ -44,6 +44,21 @@
   :hook ((markdown-mode org-mode) . valign-mode)
   :custom (valign-fancy-bar t))         ;; draw the separator rows as solid rules
 
+;; Spell checking is useful in prose but should not make startup noisy on
+;; systems without an installed checker.  Flyspell uses the user's configured
+;; `ispell-program-name' when enabled.
+(let ((spell-checker
+       (or (and (boundp 'ispell-program-name)
+                (executable-find ispell-program-name))
+           (executable-find "aspell")
+           (executable-find "hunspell")
+           (executable-find "ispell"))))
+  (when spell-checker
+    (setq ispell-program-name spell-checker)
+    (use-package flyspell
+      :ensure nil
+      :hook ((markdown-mode org-mode) . flyspell-mode))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Org
 (use-package org

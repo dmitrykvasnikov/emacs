@@ -47,6 +47,13 @@
 ;; and is read back by consult-history, M-y and the C-r prompts.
 (setq history-length 1000)
 (savehist-mode 1)                       ; persist minibuffer history across sessions
+;; Save histories that are not minibuffer histories themselves.  In
+;; particular, `M-y' reads `kill-ring', which Savehist does not persist by
+;; default.
+(dolist (variable '((kill-ring . 200)
+                    (search-ring . 200)
+                    (regexp-search-ring . 200)))
+  (add-to-list 'savehist-additional-variables variable))
 (save-place-mode 1)                     ; reopen files at the point last left there
 (global-auto-revert-mode 1)             ; reload files changed on disk (e.g. by git)
 (repeat-mode 1)                         ; repeat a chord's last key alone: C-x o o o
@@ -80,6 +87,13 @@
 (setq isearch-lazy-count t)             ; "3/17" in the prompt while typing
 (setq isearch-wrap-pause 'no-ding)      ; wrap past the end silently, no extra C-s
 (setq isearch-repeat-on-direction-change t) ; C-r after C-s moves off the current match
+
+;; Keep files pleasant to consume outside Emacs and make accidental missing
+;; final newlines visible to version-control tools.
+(setq require-final-newline t)
+(add-hook 'prog-mode-hook
+          (lambda ()
+            (setq-local show-trailing-whitespace t)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Editing helpers.  The binding lives here rather than in dk-keymap.el so that

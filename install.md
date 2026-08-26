@@ -5,6 +5,9 @@ system. Missing Emacs packages install automatically on startup through
 `use-package` (`src/dk-packages.el`); `M-x dk/install-packages` remains
 available when you want to install the complete set explicitly.
 
+The editing helpers `multiple-cursors`, `wgrep`, `avy`, and `vundo` are pure
+Emacs Lisp packages and add no external software requirements.
+
 Every entry names the configuration file that needs it, so anything belonging
 to a language you don't use can be dropped.  Exact line numbers are omitted so
 the references do not become stale after unrelated edits.

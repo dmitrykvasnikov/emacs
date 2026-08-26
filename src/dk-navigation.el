@@ -4,6 +4,12 @@
 
 (require 'dk-vars)                      ; `dk/project-ignored-directories'
 
+;; Jump straight to visible text using short on-screen hint keys.  M-g c is the
+;; natural replacement for the rarely-used numeric `goto-char'; that command
+;; remains available through M-x.
+(use-package avy
+  :bind ("M-g c" . avy-goto-char-timer))
+
 ;; The list of recently visited files, persisted across sessions.  It is what
 ;; backs `consult-recent-file' (C-x C-r) and the recent-file section of
 ;; `consult-buffer'.

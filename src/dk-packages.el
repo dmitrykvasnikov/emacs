@@ -44,11 +44,12 @@
 (setq use-package-always-ensure t)
 
 (defconst dk/package-list
-  '(apheleia cape clang-format consult corfu diff-hl diredfl doom-modeline
+  '(apheleia avy cape clang-format consult corfu diff-hl diredfl doom-modeline
     doom-themes ef-themes embark embark-consult expand-region gruvbox-theme
     haskell-mode haskell-ts-mode helpful ligature magit marginalia markdown-mode
-    nerd-icons nerd-icons-corfu nerd-icons-dired orderless org-appear org-modern
-    rainbow-delimiters rustic rust-mode spacemacs-theme valign vertico)
+    multiple-cursors nerd-icons nerd-icons-corfu nerd-icons-dired orderless
+    org-appear org-modern rainbow-delimiters rustic rust-mode spacemacs-theme
+    valign vertico vundo wgrep)
   "Third-party packages used by this configuration.")
 
 (defun dk/install-packages (&optional refresh)

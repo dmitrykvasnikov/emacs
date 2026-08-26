@@ -101,5 +101,20 @@
 (use-package expand-region
   :bind ("C-=" . er/expand-region))
 
+;; Edit several occurrences or lines at once.  Use Eglot's semantic rename for
+;; program symbols; these commands are for deliberately textual transformations.
+(use-package multiple-cursors
+  :bind (("C->"   . mc/mark-next-like-this)
+         ("C-<"   . mc/mark-previous-like-this)
+         ("C-c ;" . mc/mark-all-like-this)
+         ("C-c l" . mc/edit-lines)))
+
+;; Inspect and move through the buffer's ordinary undo history as a tree.  This
+;; does not replace the undo implementation or need a permanent minor mode;
+;; C-/ and C-_ remain the quick linear undo keys.
+(use-package vundo
+  :bind ("C-x u" . vundo)
+  :custom (vundo-glyph-alist vundo-unicode-symbols))
+
 (provide 'dk-defaults)
 ;;; dk-defaults.el ends here

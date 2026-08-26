@@ -185,6 +185,12 @@
   :after (embark consult)
   :hook (embark-collect-mode . consult-preview-at-point-mode))
 
+;; Make an exported consult-ripgrep buffer writable, then apply its edited
+;; matches back to the source buffers.  Kept command-only so ordinary searches
+;; do not load wgrep until an exported result set is deliberately edited.
+(use-package wgrep
+  :commands wgrep-change-to-wgrep-mode)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Completion at point
 ;; In-buffer completion popup, driven by whatever `completion-at-point-functions'

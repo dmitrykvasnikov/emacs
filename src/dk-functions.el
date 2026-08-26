@@ -58,8 +58,7 @@
 If the current window has full frame width, split right; otherwise split
 below.  Point stays where it was when a split succeeds, so the docs can be
 read and dismissed without moving into them.  If the frame is too small to
-split, use the current window instead of raising an error.  See
-`dk/helpful-dismiss'.
+split, use the current window instead of raising an error.
 `helpful-switch-buffer-function' is called after `helpful-update' has
 already run inside BUF, and its return value is discarded, so declining
 to select the new window is safe."
@@ -71,28 +70,6 @@ to select the new window is safe."
     (if win
         (set-window-buffer win buf)
       (switch-to-buffer buf))))
-
-(defun dk/helpful-window ()
-  "Return a live window showing a `helpful-mode' buffer, or nil."
-  (seq-find (lambda (win)
-              (provided-mode-derived-p
-               (buffer-local-value 'major-mode (window-buffer win))
-               'helpful-mode))
-            (window-list nil 'no-minibuf)))
-
-(defun dk/helpful-dismiss ()
-  "Close the visible helpful window, if there is one, and kill its buffer.
-Returns non-nil when a window was actually closed, which is what lets
-this be used as `:before-until' advice on the quit commands: a plain
-C-g or ESC keeps its usual meaning whenever no helpful window is up."
-  (interactive)
-  (when-let* ((win (dk/helpful-window))
-              (buf (window-buffer win)))
-    ;; Only delete the window if it isn't the last one in the frame.
-    (unless (one-window-p 'no-minibuf)
-      (delete-window win))
-    (kill-buffer buf)
-    t))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Config maintenance

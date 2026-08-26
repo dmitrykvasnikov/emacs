@@ -75,9 +75,9 @@
 Flips the remap for files opened later, and re-applies it to the Haskell
 buffers already open."
   (interactive)
-  (require 'haskell-ts-mode)
-  (unless (treesit-ready-p 'haskell)
+  (unless (treesit-ready-p 'haskell t)
     (user-error "No Haskell grammar -- run M-x dk/treesit-install-all"))
+  (require 'haskell-ts-mode)
   (let ((on (eq (alist-get 'haskell-mode major-mode-remap-alist)
                 'haskell-ts-mode)))
     (if on

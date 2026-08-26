@@ -49,6 +49,7 @@
 ;; `ispell-program-name' when enabled.
 (let ((spell-checker
        (or (and (boundp 'ispell-program-name)
+                (stringp ispell-program-name)
                 (executable-find ispell-program-name))
            (executable-find "aspell")
            (executable-find "hunspell")

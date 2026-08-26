@@ -6,7 +6,7 @@
 ;; early-init.el, so the frame is never created with them in the first place.
 
 (require 'dk-vars)                      ; `dk/font-family', `dk/font-height'
-(require 'dk-functions)                 ; `dk/enable-tty-mouse', `dk/helpful-*'
+(require 'dk-functions)                 ; `dk/enable-tty-mouse', `dk/helpful-open'
 
 ;; Text put in *scratch* on start-up.  Must be comment syntax for the buffer's
 ;; mode (lisp-interaction-mode), hence the leading `;;'.

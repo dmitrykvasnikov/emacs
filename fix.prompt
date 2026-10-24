@@ -1,0 +1,841 @@
+FIX PROMPT — Emacs configuration remediation
+============================================
+
+Source: configuration review of 2026-10-24 (Emacs 31.1, branch astra_fix).
+Companion file: fix.docs — same tasks, each with the full rationale and the
+goals it achieves.  Read the matching section there when a task is unclear.
+
+
+HOW TO USE THIS FILE (instructions for the agent)
+-------------------------------------------------
+
+1. Read AGENTS.md first and follow it: `dk/` prefix, lexical binding,
+   non-package functions in src/dk-functions.el, `dk/*` variables in
+   src/dk-vars.el, global keys in src/dk-keymap.el, package-specific keys in
+   that package's `use-package` form, named hook helpers instead of lambdas.
+   Match the surrounding comment density and style.
+
+2. Pick the FIRST task whose heading starts with `## [ ]`:
+       grep -n '^## \[ \]' fix.prompt | head -1
+   Do only that one task in this session unless the user says "continue".
+
+3. Tasks tagged [ASK] contain a decision that belongs to the user.  Before
+   writing any code, ask the listed question (AskUserQuestion, recommended
+   option first), then write the answer into that task's `Decision:` line.
+   If the user picks "skip", mark the task `## [-]` with the reason in
+   `Result:` and move on.
+
+4. Line numbers in tasks are hints from the review snapshot.  Earlier tasks
+   may have moved code: always locate the code by its content.
+
+5. Implement the change.  Update comments that the change makes untrue.
+   If a keybinding or user-visible behaviour changes, update cheatsheet.md.
+   If an external tool requirement changes, update install.md.
+
+6. Verify (both the generic checks below and the task's own `Verify:`).
+   Run batch checks in a SANDBOX COPY of the config, never in
+   ~/.config/emacs itself, so history/recentf/places are not rewritten.
+   Re-create the sandbox after editing files (it is a copy).
+
+   Sandbox (use the session scratchpad directory if one exists, otherwise
+   `mktemp -d`; never `rm -rf` a path built from a variable):
+
+       SB=<fresh empty directory>
+       cd ~/.config/emacs
+       cp -a early-init.el init.el src themes test package-quickstart.el \
+             package-quickstart.elc elpa "$SB"/
+       [ -f custom.el ]     && cp -a custom.el "$SB"/
+       [ -d tree-sitter ]   && cp -a tree-sitter "$SB"/
+
+   Smoke test (must print "startup OK", inspect every warning):
+
+       cd "$SB" && emacs --batch --init-directory="$SB" \
+         --eval '(setq native-comp-jit-compilation nil)' \
+         --load early-init.el --eval '(package-activate-all)' \
+         --load init.el --eval '(message "startup OK")'
+
+   ERT suite (append any new test/*.el files):
+
+       cd "$SB" && emacs --batch --init-directory="$SB" \
+         --eval '(setq native-comp-jit-compilation nil)' \
+         --load early-init.el --eval '(package-activate-all)' \
+         --load init.el -l ert \
+         -l test/dk-functions-test.el -l test/dk-integration-test.el \
+         -l test/dk-packages-test.el \
+         -f ert-run-tests-batch-and-exit
+
+   Byte-compile warnings (should report nothing new):
+
+       cd "$SB" && emacs --batch --init-directory="$SB" \
+         --eval '(setq native-comp-jit-compilation nil)' \
+         --load early-init.el --eval '(package-activate-all)' \
+         --load init.el --eval '(setq byte-compile-warnings t)' \
+         --eval '(dolist (f (directory-files "src" t "\\.el\\'"'"'")) (byte-compile-file f))'
+
+   Delete the .elc files the last command leaves in "$SB/src" (they are in
+   the sandbox only).  Interactive-only behaviour (GUI keys, window layout,
+   popups) cannot be fully checked in batch: say so and list the manual
+   steps for the user.
+
+7. Mark the task done: change its heading `## [ ]` to `## [x]` and fill in
+   `Result:` with one or two lines (files touched, what was verified,
+   anything left for manual testing).  Do not edit other tasks' status.
+
+8. Do not commit unless the user asks.  Each task suggests a commit subject
+   in the repository's imperative style.  Never commit fix.prompt/fix.docs
+   changes mixed into a config commit unless the user asks.
+
+9. Stop and report: what changed, verification output summary, manual
+   checks for the user, and the ID of the next open task.
+
+
+STATUS LEGEND:  [ ] open   [x] done   [-] skipped by user decision
+
+
+==========================================================================
+P1 — BUGS AND HAZARDS
+==========================================================================
+
+## [x] T01 · Fix the haskell-ts REPL command (and its false-passing test)
+
+Files: src/dk-languages.el (~58-67), test/dk-integration-test.el (~4-14)
+Problem: `:bind` creates an autoload for `dk/haskell-ts-run-repl` before
+`:config` runs, so `(unless (fboundp 'dk/haskell-ts-run-repl) (defalias ...))`
+never fires.  C-c C-z / C-c C-r in haskell-ts-mode signal "Autoloading file
+.../haskell-ts-mode.elc failed to define function dk/haskell-ts-run-repl".
+Change:
+  - Define the alias when the symbol is unbound OR still an autoload:
+      (unless (and (fboundp 'dk/haskell-ts-run-repl)
+                   (not (autoloadp (symbol-function 'dk/haskell-ts-run-repl))))
+        (defalias ...))
+    Keep the existing intent: once a real function is captured, a reload of
+    dk-languages after inf-haskell is loaded must not replace it.
+  - Update the comment to say why the autoload case must be handled.
+  - Strengthen the integration test: after `(require 'haskell-ts-mode)` assert
+    `(functionp (symbol-function 'dk/haskell-ts-run-repl))` and
+    `(not (autoloadp (symbol-function 'dk/haskell-ts-run-repl)))`, both before
+    and after `(require 'inf-haskell)` and the `(load "dk-languages" nil t)`.
+Verify: ERT passes; in batch after `(require 'haskell-ts-mode)`,
+`(autoloadp (symbol-function 'dk/haskell-ts-run-repl))` is nil.  Revert the
+fix temporarily (mentally or in the sandbox) to confirm the new test fails
+without it.
+Commit: "Fix haskell-ts REPL alias shadowed by its autoload"
+Result: src/dk-languages.el (alias also defined while the symbol is still an
+autoload), test/dk-integration-test.el (asserts a real, non-autoload function
+before/after inf-haskell and reload).  New test fails on the old code, passes now.
+
+
+## [x] T02 · Stop splitting Cargo/cabal/Go workspaces into per-package projects
+
+Files: src/dk-navigation.el (~63-67)
+Problem: `project-vc-extra-root-markers` contains "Cargo.toml", "*.cabal" and
+"go.mod"; the nearest marker wins, so every workspace member becomes its own
+project and Eglot starts one LSP server per member.
+Change:
+  - Replace per-package markers with workspace-level ones:
+      '("cabal.project" "stack.yaml" "Cargo.lock" "go.work"
+        "compile_commands.json")
+  - Rewrite the comment above it: markers exist to give NON-git directories a
+    root; inside git the repository root (or a workspace file) is the root,
+    because Eglot uses the project root as the server root.  Mention the
+    trade-off (a lone crate outside git becomes a project after its first
+    build creates Cargo.lock; a lone cabal package outside git needs a
+    cabal.project).
+Verify: in a scratch git repo with Cargo.toml at the top and crates/a,
+crates/b each containing Cargo.toml + src/lib.rs, `(project-root
+(project-current nil "<repo>/crates/a/src/"))` returns the repo root (it
+returned crates/a/ before the change).  Smoke test + ERT pass.
+Commit: "Root projects at workspace level, not per package"
+Result: src/dk-navigation.el markers + comments.  Scratch cargo workspace: root from
+crates/a/src is now the repo root (was crates/a/).  Smoke + ERT pass.
+
+
+## [x] T03 · Stop hiding git-tracked files with the ignored-directory list
+
+Files: src/dk-vars.el (~48-79), src/dk-navigation.el (~68-80, ~98-107),
+       src/dk-completion.el (~147-159)
+Problem: `dk/project-ignored-directories` excludes any directory named
+build, dist, vendor (…) at any depth from C-x p f, rgrep and consult-ripgrep,
+even when git tracks it (verified: tracked build/tool.sh vanished from
+`project-files`).  ripgrep's `--glob=!NAME` also excludes plain FILES of
+that name.
+Change:
+  - Remove the ambiguous generic names "build", "dist" and "vendor" from the
+    list.  Keep names that are unambiguously generated: "dist-newstyle"
+    ".stack-work" ".hie" "target" "cmake-build-*" ".cache" "node_modules"
+    ".direnv".
+  - Make the ripgrep globs directory-only: format them as
+    `--glob=!%s/` (gitignore semantics: trailing slash = directories only).
+  - Update the dk-vars.el docstring: what the list is for, why generic names
+    are excluded, and that a project needing more can set
+    `project-vc-ignores` in its own .dir-locals.el (the variable is
+    `safe-local-variable` for lists).
+Verify: in a scratch git repo with tracked build/tool.sh, `project-files`
+includes it.  In a scratch dir containing target/x.txt (directory) and a
+file literally named `target`, run rg with the resulting
+`consult-ripgrep-args` globs: target/x.txt is skipped, the file `target` is
+searched.  Smoke test + ERT pass.
+Commit: "Narrow ignored build directories to generated ones"
+Result: src/dk-vars.el (list + docstring), src/dk-completion.el (`--glob=!%s/`),
+cheatsheet.md.  Tracked build/tool.sh now in project-files; rg skips target/x.txt
+but searches a file named `target`.  Smoke + ERT pass.
+
+
+## [x] T04 · Make ESC stop deleting other windows
+
+Files: src/dk-functions.el, src/dk-keymap.el (~10-12)
+Problem: `<escape>` runs `keyboard-escape-quit`, which calls
+`delete-other-windows` when there is nothing else to cancel (verified: 2
+windows -> 1).  The comment claims it works "like C-g".
+Change:
+  - Keep `<escape>` bound to `keyboard-escape-quit` (so corfu's
+    `[remap keyboard-escape-quit]` keeps working) and add a named :around
+    advice in dk-functions.el:
+      (defun dk/escape-quit-keep-windows (orig-fun &rest args)
+        "Run ORIG-FUN (`keyboard-escape-quit') without deleting windows."
+        (cl-letf (((symbol-function 'one-window-p) #'always))
+          (apply orig-fun args)))
+    `(require 'cl-lib)` at the top of dk-functions.el if not present.
+  - Install it in dk-keymap.el next to the binding with `advice-add`
+    (idempotent on reload).  Fix the comment: ESC now cancels the region,
+    prefix argument, minibuffer and recursive edit, but never touches the
+    window layout.
+Verify (batch): split window, call `keyboard-escape-quit` -> still 2
+windows; with an active region, ESC deactivates it.  Manual (GUI): ESC in a
+minibuffer aborts it; ESC with a corfu popup closes the popup; ESC ESC ESC
+also keeps windows.
+Commit: "Keep window layout when ESC quits"
+Result: src/dk-functions.el (cl-lib, dk/escape-quit-keep-windows), src/dk-keymap.el,
+cheatsheet.md.  Batch: 2 windows kept, region deactivated, advice single after
+reload.  Manual: ESC in minibuffer, with corfu popup, ESC ESC ESC.
+
+
+## [x] T05 · Make helpful reuse its window and let q close it
+
+Files: src/dk-functions.el (~55-72), src/dk-ui.el (~111-121)
+Problem: `dk/helpful-open` splits on every call, including following links
+inside a helpful buffer (verified: 2 lookups -> 3 windows).  The window is
+filled with `set-window-buffer`, so it has no quit-restore parameter and
+`q` cannot delete it.
+Change: rewrite `dk/helpful-open` around `display-buffer`:
+  - In a helpful buffer: `(pop-to-buffer-same-window buf)` (link navigation
+    replaces the content in place).
+  - Elsewhere:
+      (display-buffer
+       buf `((display-buffer-reuse-mode-window
+              display-buffer-in-direction
+              display-buffer-same-window)
+             (mode . helpful-mode)
+             (direction . ,(if (window-full-width-p) 'right 'below))))
+    i.e. reuse a visible helpful window, otherwise split right/below as
+    before, otherwise use the current window.  Point stays in the original
+    window when a split is made (display-buffer does not select).
+  - Update the docstring and the dk-ui.el comment.
+Verify (batch, count `window-list`): from a code buffer -> 2 windows; call
+again from the helpful window -> still 2; call again from the code window
+-> still 2 (reused); `quit-window` in the helpful window -> 1 window.
+Manual: C-h f, follow a link, press q.
+Commit: "Reuse the helpful window and let q close it"
+Result: src/dk-functions.el, src/dk-ui.el.  Batch: 2/2/2 windows.  Emacs 31 quit-restore
+makes q step back through the buffers the window showed, then delete it (q x4 ->
+1 window after car/cdr/cons/list), not on the first q.  Manual: C-h f, link, q.
+
+
+## [x] T06 · Give embark its keys back in Org/Markdown (flyspell conflict)
+
+Files: src/dk-writing.el (~47-61)
+Problem: `flyspell-mode-map` binds C-. and C-; (auto-correct), shadowing the
+global `embark-act` / `embark-dwim` in every prose buffer; it also takes
+C-M-i (completion-at-point) via `flyspell-use-meta-tab`.
+Change in the flyspell `use-package` form:
+  - `:custom (flyspell-use-meta-tab nil)` (must be set before flyspell loads;
+    :custom does that).
+  - `:config` with `(keymap-unset flyspell-mode-map "C-." t)` and
+    `(keymap-unset flyspell-mode-map "C-;" t)`.
+  - Comment: auto-correct stays reachable through `C-c $`
+    (flyspell-correct-word-before-point) and M-x; C-, (next error) is kept.
+Verify: after `(require 'flyspell)` in the loaded config,
+`(keymap-lookup flyspell-mode-map "C-.")`, "C-;" and "C-M-i" are nil.  In a
+temp org buffer with flyspell-mode on, `(key-binding (kbd "C-."))` is
+`embark-act`.  (If no spell checker is installed the form is skipped
+entirely; then check with the guard bypassed in the sandbox.)
+Commit: "Stop flyspell from shadowing embark keys"
+Result: src/dk-writing.el.  flyspell-mode-map C-. / C-; / C-M-i nil; with flyspell's
+map active in org, C-. = embark-act, C-; = embark-dwim (old: flyspell-auto-correct-*).
+
+
+## [x] T07 · Stop apheleia from reformatting Haskell and Elisp unasked  [ASK]
+
+Files: src/dk-functions.el (~174-185), src/dk-programming.el (~117-127),
+       src/dk-languages.el (comments mentioning dk/no-clang-format-p)
+Problem: `apheleia-mode-alist` maps haskell-mode/haskell-ts-mode to
+fourmolu and emacs-lisp-mode to lisp-indent, so saving re-formats whole
+files in projects that use another style (or none).  C/C++ is already gated
+on a .clang-format file; Haskell and Elisp are not.
+Question: "How should format-on-save treat Haskell and Emacs Lisp?"
+  1. (Recommended) Haskell only when fourmolu.yaml exists in the tree;
+     never for Emacs Lisp.
+  2. Never for either.
+  3. Keep formatting both (skip this task).
+Decision: option 1 — Haskell only with fourmolu.yaml; never Emacs Lisp.
+Change (for option 1; adapt for 2):
+  - Replace `dk/no-clang-format-p` with `dk/apheleia-inhibit-p` in
+    dk-functions.el: non-nil when (a) C/C++ (ts and classic) without
+    .clang-format/_clang-format, (b) haskell-mode/haskell-ts-mode without
+    fourmolu.yaml in a dominating directory, (c) `lisp-data-mode` derived
+    buffers (covers emacs-lisp-mode, lisp-interaction-mode).  Docstring
+    explains each clause.
+  - Register it in `apheleia-inhibit-functions`; on reload remove the old
+    symbol from that list too (`(remove-hook 'apheleia-inhibit-functions
+    #'dk/no-clang-format-p)` style, it is a plain list: use `delq`).
+  - Update comments in dk-programming.el and dk-languages.el.
+Verify: in temp buffers: c-ts-mode without config -> inhibit non-nil;
+haskell-mode in a dir without fourmolu.yaml -> non-nil, with one -> nil;
+emacs-lisp-mode -> non-nil; go-ts-mode -> nil.  ERT + smoke test pass.
+Commit: "Format Haskell and Elisp only when a project opts in"
+Result: src/dk-functions.el (dk/apheleia-inhibit-p replaces dk/no-clang-format-p),
+src/dk-programming.el, src/dk-languages.el, install.md, cheatsheet.md.  All
+temp-buffer cases as specified; old symbol removed on reload.  Smoke + ERT pass.
+
+
+==========================================================================
+P2 — WORKFLOW
+==========================================================================
+
+## [x] T08 · Stop corfu from hijacking RET  [ASK]
+
+Files: src/dk-completion.el (~195-218)
+Problem: `corfu-auto t` + `corfu-preselect :first` + RET = `corfu-insert`
+means RET after a word inserts the first candidate instead of a newline
+(prose, code, comint prompts).
+Question: "What should RET do while a corfu popup is open?"
+  1. (Recommended) Always newline/send; accept candidates with TAB only.
+  2. Accept the candidate in prog-mode buffers, newline everywhere else.
+  3. Keep the current behaviour (skip).
+Decision: option 1 — RET always newline/send; TAB accepts.
+Change:
+  - Option 1: in corfu's `:config`, `(keymap-unset corfu-map "RET" t)` (and
+    "<return>" if it is bound — check with keymap-lookup first).
+  - Option 2: bind "RET" in corfu-map to a menu-item whose :filter returns
+    `#'corfu-insert` only when `(derived-mode-p 'prog-mode)`, nil otherwise
+    (nil falls through to the normal RET).  Use a named filter function in
+    dk-functions.el.
+  - Rewrite the `:bind` comment (it currently says RET is corfu's default
+    and not restated).
+Verify: `(keymap-lookup corfu-map "RET")` matches the decision.  Manual: in
+an org buffer type "the" + RET -> newline; TAB still inserts the candidate.
+Update cheatsheet.md.
+Commit: "Keep RET as newline while corfu is open"
+Result: src/dk-completion.el (`keymap-unset corfu-map "RET"` in :config;
+<return> was never bound), cheatsheet.md.  corfu-map RET/<return> nil, TAB =
+corfu-insert.  Manual: org "the" RET -> newline; TAB inserts; RET at a shell prompt.
+
+
+## [x] T09 · Quieter completion in prose buffers  [ASK]
+
+Files: src/dk-functions.el (`dk/prose-display`, ~234-237)
+Problem: in Org/Markdown, `dk/cape-dabbrev` pops corfu up after every
+3-letter word while writing prose.
+Question: "How should auto-completion behave in Org/Markdown?"
+  1. (Recommended) No auto popup in prose; TAB/M-TAB still completes on demand.
+  2. Keep auto popup but only after 5 characters in prose.
+  3. Keep current behaviour (skip).
+Decision: option 1 — no auto popup in prose.
+Change:
+  - Option 1: in `dk/prose-display` add `(setq-local corfu-auto nil)`.
+    This works because the globalized corfu mode turns `corfu-mode` on after
+    the major-mode hooks, and corfu reads `corfu-auto` when enabling.
+  - Option 2: `(setq-local corfu-auto-prefix 5)` instead, and make
+    `dk/cape-dabbrev` use `(max 3 corfu-auto-prefix)` for its length gate.
+  - Update the docstring.
+Verify: in a temp org buffer after `(org-mode)`, check `corfu-auto` (or the
+prefix) locally and that `corfu--auto-post-command` is / is not on the
+buffer-local `post-command-hook` as expected; a prog buffer is unchanged.
+Commit: "Disable auto completion popups in prose"
+Result: src/dk-functions.el (`dk/prose-display`), cheatsheet.md.  org: corfu-auto
+local nil, no corfu-auto--post-command hook; elisp: t + hook.  Manual: type in org.
+
+
+## [x] T10 · Fix file completion styles (TRAMP + orderless for recent files)
+
+Files: src/dk-completion.el (~86-93)
+Problem: `completion-category-overrides '((file (styles partial-completion)))`
+drops `basic` (needed first for TRAMP host completion) and disables
+orderless for every file-category prompt, including C-x C-r.
+Change: `'((file (styles basic partial-completion orderless)))`, and rewrite
+the comment: basic first for TRAMP and literal prefixes, partial-completion
+for /u/s/l paths, orderless last as fallback for space-separated words
+(e.g. "emacs init" in consult-recent-file).
+Verify: `completion-category-overrides` value after load, then in batch:
+    (completion-all-completions
+     "emacs init"
+     (lambda (s p a)
+       (if (eq a 'metadata) '(metadata (category . file))
+         (complete-with-action a '("~/.config/emacs/init.el" "~/x/y.el") s p)))
+     nil 10)
+must return the init.el entry.  Manual: C-x C-r "emacs init"; C-x C-f
+"/ssh:" offers hosts.
+Commit: "Restore basic and orderless styles for file prompts"
+Result: src/dk-completion.el, cheatsheet.md.  "emacs init" returns
+~/.config/emacs/init.el; /u/s/l still expands.  Manual: C-x C-r "emacs init", C-x C-f /ssh:.
+
+
+## [x] T11 · Stop org rendering snake_case as subscripts
+
+Files: src/dk-writing.el (~75-77)
+Problem: `org-pretty-entities-include-sub-superscripts t` with the default
+`org-use-sub-superscripts t` turns `file_name` into file + subscript "name".
+Change: add `(org-use-sub-superscripts '{})` and
+`(org-export-with-sub-superscripts '{})` to the org `:custom` block with a
+comment: only braced forms a_{1}, x^{2} are rendered/exported.
+Verify: values after `(require 'org)`.  Manual: "file_name" shows literally,
+"a_{1}" renders as subscript.
+Commit: "Render org sub/superscripts only in braces"
+Result: src/dk-writing.el (+ org-appear comment), cheatsheet.md.  Both values {}
+after (require 'ox).  Manual: file_name literal, a_{1} rendered.
+
+
+## [x] T12 · Make gfm-view-mode a reversible toggle (and keep q from killing)
+
+Files: src/dk-functions.el, src/dk-writing.el (~32-38)
+Problem: C-c C-v enters `gfm-view-mode`, nothing leads back, and `q` there
+runs `kill-current-buffer` on the file's buffer.
+Change:
+  - Add `dk/markdown-toggle-view` to dk-functions.el: in a
+    `markdown-view-mode`-derived buffer switch to `gfm-mode` and restore
+    `buffer-read-only` to `(and buffer-file-name (not (file-writable-p
+    buffer-file-name)))` (view mode sets it, and a major-mode switch does
+    not reset it); otherwise switch to `gfm-view-mode`.
+  - Bind it to C-c C-v in `markdown-mode-map` (replacing `gfm-view-mode`)
+    and to C-c C-v and q in `markdown-view-mode-map`.  Confirm that
+    `gfm-view-mode-map` inherits these (keymap-lookup); if it does not, bind
+    them there as well.
+Verify: open a temp .md copy in the sandbox: C-c C-v -> gfm-view-mode,
+read-only; C-c C-v again -> gfm-mode, writable; `q` in view mode returns to
+gfm-mode and the buffer is still live.  Update cheatsheet.md.
+Commit: "Toggle markdown view mode in both directions"
+Result: src/dk-functions.el (`dk/markdown-toggle-view`), src/dk-writing.el, cheatsheet.md.
+gfm-view-mode derives from gfm-mode, not markdown-view-mode, so both are tested;
+gfm-view-mode-map is eq to markdown-view-mode-map.  read-only is restored BEFORE the
+mode switch (corfu skips read-only buffers).  C-c C-v/C-c C-v/q verified; 0444 file stays ro.
+
+
+## [x] T13 · Show markdown markup while editing  [ASK]
+
+Files: src/dk-writing.el (~20-22)
+Problem: `markdown-hide-markup t` and `markdown-hide-urls t` hide the
+syntax being edited, and Markdown has no reveal-at-point (Org has
+org-appear).
+Question: "How should Markdown markup be displayed in the editing buffer?"
+  1. (Recommended) Visible while editing; rendered only in the C-c C-v view.
+  2. Hide URLs only, keep emphasis/heading markup visible.
+  3. Keep everything hidden (skip).
+Decision: option 1 — visible while editing, rendered in the C-c C-v view.
+Change: set the two options per decision; adjust their comments to point at
+the view toggle from T12 (check that `markdown-view-mode` hides markup by
+itself; if it does not, set `markdown-hide-markup` buffer-locally from a
+named hook on `markdown-view-mode-hook`).
+Verify: option values in a gfm-mode buffer and in gfm-view-mode.
+Commit: "Show markdown markup while editing"
+Result: src/dk-writing.el, cheatsheet.md.  View modes hide markup by themselves
+(URLs carry the markdown-markup invisibility), no hook needed: gfm-mode hide-markup nil,
+gfm-view-mode hide-markup t with markdown-markup in the invisibility spec.
+
+
+## [x] T14 · Make Go indentation width consistent with gofmt's tabs
+
+Files: src/dk-functions.el, src/dk-languages.el (~126-137)
+Problem: `go-ts-mode-indent-offset 4` is the indent step, not the tab
+display width (the comment is wrong).  `tab-width` stays 8 with
+`indent-tabs-mode t`, so typed lines get 4 spaces, gofmt rewrites them as
+tabs shown 8 wide, and indentation jumps after each save.
+Change:
+  - Add `dk/go-ts-tab-width` (dk-functions.el): `(setq-local tab-width
+    go-ts-mode-indent-offset)`.
+  - `:hook (go-ts-mode . dk/go-ts-tab-width)` in the go-ts-mode form.
+  - Correct the comment: offset = indent step, tab-width set to match so one
+    level = one tab displayed 4 wide; gofmt output unaffected.
+Verify: in a temp buffer `(go-ts-mode)` (needs the go grammar; otherwise
+call the hook function directly in a buffer with indent-tabs-mode t) ->
+`tab-width` 4.
+Commit: "Display Go tabs at the configured indent width"
+Result: src/dk-functions.el (`dk/go-ts-tab-width`), src/dk-languages.el.  Hook
+function -> tab-width 4; on go-ts-mode-hook.  go-ts-mode itself not run (no grammar).
+
+
+## [x] T15 · Default to spaces for indentation
+
+Files: src/dk-defaults.el
+Problem: `indent-tabs-mode` is never set (default t), so lines typed in C,
+Elisp and other modes mix tabs and spaces at >= 8 columns.
+Change: `(setq-default indent-tabs-mode nil)` in dk-defaults.el with a
+comment: modes whose formats need tabs (go-ts-mode, makefile modes) set it
+back buffer-locally; per-project tab conventions belong in .dir-locals.el.
+Verify: default value nil; in temp buffers `(makefile-mode)` -> t,
+`(go-ts-mode)` -> t (or confirm in Emacs source that go-ts-mode sets
+`indent-tabs-mode` locally), `(c-ts-mode)`/`(emacs-lisp-mode)` -> nil.
+Commit: "Indent with spaces by default"
+Result: src/dk-defaults.el, cheatsheet.md.  Default nil; makefile t; elisp/c nil.
+go-ts-mode sets indent-tabs-mode t locally (go-ts-mode.el:339), not run: no grammar.
+
+
+## [x] T16 · Keep M-o = other-window inside ibuffer
+
+Files: src/dk-navigation.el (or dk-ui.el), cheatsheet.md
+Problem: `ibuffer-mode-map` binds M-o to `ibuffer-visit-buffer-1-window`,
+so window switching stops in exactly the buffer C-x C-b opens.
+Change: `(use-package ibuffer :ensure nil :bind (:map ibuffer-mode-map
+("M-o" . other-window)))` with a comment; the shadowed command stays on
+M-x / the menu.
+Verify: after `(require 'ibuffer)`, `(keymap-lookup ibuffer-mode-map
+"M-o")` is `other-window`.
+Commit: "Keep M-o as other-window in ibuffer"
+Result: src/dk-navigation.el (ibuffer use-package), cheatsheet.md.  ibuffer-mode-map
+M-o = other-window.  Manual: C-x C-b, M-o switches window without deleting others.
+
+
+## [x] T17 · Move mc/mark-all-like-this off the major-mode key C-c ;  [ASK]
+
+Files: src/dk-defaults.el (~106-110), cheatsheet.md
+Problem: `C-c ;` is reserved for major modes by Emacs key conventions; org
+binds it to `org-toggle-comment`, so mark-all is unavailable in org.
+Question: "Which key should mc/mark-all-like-this use?"
+  1. (Recommended) C-c A
+  2. C-c a
+  3. Keep C-c ; (skip)
+Decision: option 1 — C-c A.
+Change: rebind in the multiple-cursors `:bind`, add a comment about the
+convention.
+Verify: global binding of the new key; `C-c ;` in org-mode-map still
+`org-toggle-comment`.
+Commit: "Move mark-all-like-this to a user key"
+Result: src/dk-defaults.el, cheatsheet.md.  Global C-c A = mc/mark-all-like-this, C-c ;
+globally nil, org-mode-map C-c ; still org-toggle-comment.
+
+
+## [x] T18 · Make C-c e (eval-buffer) Elisp-only
+
+Files: src/dk-keymap.el (~47), src/dk-programming.el, cheatsheet.md
+Problem: `C-c e` evaluates any buffer as Lisp — Markdown, C, shell files.
+Change: remove the global binding; add `(use-package elisp-mode :ensure nil
+:bind (:map emacs-lisp-mode-map ("C-c e" . eval-buffer)))` in
+dk-programming.el.  Check whether `lisp-interaction-mode-map` inherits from
+`emacs-lisp-mode-map` in Emacs 31 (`keymap-parent`); if not, bind it there
+too so *scratch* keeps the key.
+Verify: `(keymap-lookup (current-global-map) "C-c e")` nil; lookup in
+emacs-lisp-mode-map and in a *scratch*-mode buffer -> `eval-buffer`.
+Commit: "Bind eval-buffer only in Emacs Lisp buffers"
+Result: src/dk-keymap.el, src/dk-programming.el (elisp-mode use-package), cheatsheet.md.
+lisp-interaction-mode-map has no parent link to emacs-lisp-mode-map on 31.1, so both
+are bound.  Global C-c e nil; elisp map and *scratch* -> eval-buffer; text-mode nil.
+
+
+## [x] T19 · Trust the config's own files so Elisp flymake works
+
+Files: src/dk-programming.el (flymake section)
+Problem: since Emacs 30 `elisp-flymake-byte-compile` only runs in buffers
+covered by `trusted-content`; it is unset, so `(trusted-content-p)` is nil
+for src/*.el and the config gets no byte-compile diagnostics.
+Change: add the config's own sources, abbreviated, to `trusted-content`
+(append, do not clobber): "src/", "test/" (directory entries end in "/"),
+"init.el", "early-init.el" — each via
+`(abbreviate-file-name (expand-file-name X user-emacs-directory))`.  Do NOT
+trust the whole user-emacs-directory (elpa, themes from elsewhere).
+Comment why.
+Verify: in a buffer visiting the real path of src/dk-ui.el (batch, with
+`buffer-file-name` set, `emacs-lisp-mode`), `(trusted-content-p)` is t;
+for a file in /tmp it is nil.
+Commit: "Trust config sources for Elisp flymake"
+Result: src/dk-programming.el, cheatsheet.md.  Entries go through `file-truename' (trusted-content-p
+compares truenames).  Sandbox src/, test/, init.el, early-init.el trusted; themes/, elpa/, /tmp nil.
+
+
+## [x] T20 · Resolve the C-s / C-r asymmetry  [ASK]
+
+Files: src/dk-completion.el (~126-130), src/dk-defaults.el (~80-89),
+       cheatsheet.md
+Problem: C-s is `consult-line`, C-r is still `isearch-backward`; the two
+directions behave completely differently and the persisted search-ring is
+only fed by isearch.
+Question: "How should the search keys be arranged?"
+  1. (Recommended) Keep C-s = consult-line and C-r = isearch-backward; only
+     document the split in cheatsheet.md and in the comments.
+  2. Restore C-s/C-r to isearch; move consult-line to M-s l and its repeat
+     to M-s L.
+Decision: option 1 — keep the split, document it.
+Change per decision; keep the isearch settings in dk-defaults.el
+consistent with whichever keys reach isearch.
+Verify: key-binding of C-s, C-r, (M-s l) match; cheatsheet updated.
+Commit: "Document search key split" / "Restore isearch on C-s"
+Result: src/dk-defaults.el (Search comment), src/dk-completion.el (C-s comment), cheatsheet.md.
+C-s = consult-line, C-r = isearch-backward.
+
+
+## [x] T21 · Terminal-safe alternatives for GUI-only keys  [ASK]
+
+Files: src/dk-completion.el, src/dk-defaults.el, src/dk-keymap.el,
+       cheatsheet.md
+Problem: C-. C-; C-= C-> C-< S-RET C-S-s cannot be distinguished by most
+terminals, so embark, expand-region, multiple-cursors, newline-below and
+the consult-line repeat have no key in `emacsclient -nw`.
+Question: "Add terminal-safe alternate keys?"
+  1. (Recommended) Yes: C-c x embark-act, C-c X embark-dwim, C-c v
+     er/expand-region, C-c n mc/mark-next-like-this, C-c N
+     mc/mark-previous-like-this, C-c o dk/newline-below, C-c s
+     dk/consult-line-repeat (adjust if a key is taken by an earlier task).
+  2. No (skip).
+Decision: option 1 — add C-c x/X/v/n/N/o/s.
+Change: add the alternates in each package's `use-package :bind`
+(global ones in dk-keymap.el), comment "terminal-safe alternate".
+Check every key is free first (grep the config and cheatsheet).
+Verify: key-binding for each new key; no existing binding replaced.
+Commit: "Add terminal-safe alternate keys"
+Result: src/dk-completion.el, src/dk-defaults.el, src/dk-keymap.el, cheatsheet.md (new "Terminal
+frames" table).  All 7 keys resolve; every GUI key unchanged.  Manual: emacsclient -nw.
+
+
+==========================================================================
+P3 — ENVIRONMENT AND ROBUSTNESS
+==========================================================================
+
+## [x] T22 · Make missing tree-sitter grammars visible; fix the grammar test  [ASK]
+
+Files: src/dk-treesit.el (~99-103), test/dk-integration-test.el (~28-43)
+Problem: no grammars are installed (~/.config/emacs/tree-sitter missing), so
+.go/go.mod/YAML/CMake/Dockerfile open in text-mode (no gopls, no gofmt), C
+and Rust use classic modes, and the only signal is a *Messages* line.  The
+integration test then fails for environmental reasons.
+Question: "Should I also install the pinned grammars now (network + C
+compiler, writes ~/.config/emacs/tree-sitter, git-ignored)?"
+  1. (Recommended) Yes, run dk/treesit-install-all in batch after the code change.
+  2. No, only the code/test change.
+Decision: option 1 — install grammars now.
+Change:
+  - Replace the startup `message` with `(display-warning 'dk-treesit
+    (format ...) :warning)` so it lands in *Warnings*.
+  - In `dk/installed-grammars-select-working-modes`, `skip-unless` all
+    grammars needed by the cases are available, so the test reports
+    "skipped" instead of failing on machines without grammars.
+  - If option 1: run in the REAL init dir (this is the one sanctioned
+    exception, it only writes the git-ignored tree-sitter/ dir):
+      emacs --batch --init-directory="$HOME/.config/emacs" \
+        --load early-init.el --eval '(package-activate-all)' \
+        --load init.el --eval '(dk/treesit-install-all)'
+Verify: smoke test shows the warning when grammars are absent; ERT shows the
+grammar test skipped (absent) or passed (installed).
+Commit: "Warn about missing tree-sitter grammars"
+Result: src/dk-treesit.el (display-warning), test/dk-integration-test.el (skip-unless).  Without
+grammars: warning shown, test skipped.  Installed all 12 grammars in ~/.config/emacs/tree-sitter;
+with them: no warning, 6/6 ERT pass.  Restart the daemon to pick up ts modes.
+
+
+## [x] T23 · Ask before recursive deletes on remote dired
+
+Files: src/dk-functions.el, src/dk-navigation.el (~25-41)
+Problem: `dired-recursive-deletes 'always` relies on the trash, but over
+TRAMP there is no trash: D permanently deletes directory trees after one
+prompt.
+Change: add `dk/dired-remote-safety` (dk-functions.el): when
+`(file-remote-p default-directory)`, `(setq-local dired-recursive-deletes
+'top)`.  Hook it on `dired-mode-hook` from the dired `use-package`.
+Comment: locally the trash makes 'always safe; remotely it is permanent.
+(Optional, only if the user dired's into BSD/macOS hosts: note in the
+comment that `--group-directories-first` needs GNU ls remotely.)
+Verify: in a dired-mode temp buffer with a remote-looking
+`default-directory` stubbed via cl-letf on `file-remote-p`, the hook sets
+the local value to `top`; a local dired buffer keeps `always`.
+Commit: "Confirm recursive deletes in remote dired"
+Result: src/dk-functions.el (`dk/dired-remote-safety'), src/dk-navigation.el (hook, comments incl.
+GNU ls note), cheatsheet.md.  Stubbed remote dired -> top; local dired -> always (not local).
+
+
+## [x] T24 · Sane kill-ring/search-ring persistence  [ASK]
+
+Files: src/dk-defaults.el (~46-56), src/dk-functions.el
+Problem: the kill-ring is saved in plain text to `history` (anything
+copied, passwords included) with font-lock text properties (file bloat),
+and the savehist caps (200) exceed the ring sizes (kill-ring-max 120,
+search-ring-max 16), so the numbers mean nothing.
+Question: "Keep persisting the kill-ring across restarts?"
+  1. (Recommended) Yes, but strip text properties and keep caps consistent.
+  2. No, persist only search rings.
+Decision: 1 — yes, persist the kill-ring; strip text properties, consistent caps.
+Change:
+  - Set the ring sizes explicitly once (e.g. kill-ring-max 200,
+    search-ring-max 100, regexp-search-ring-max 100) and register the
+    variables in `savehist-additional-variables` without separate caps.
+  - Option 1: add `dk/savehist-strip-kill-ring` to `savehist-save-hook`:
+    replace kill-ring with `substring-no-properties` copies of its string
+    entries.  Docstring notes the trade-off (live entries lose properties
+    such as yank handlers at each save).
+  - Option 2: drop kill-ring from the list.
+Verify: variable values; run `dk/savehist-strip-kill-ring` on a kill-ring
+containing a propertized string -> entries have no properties.
+Commit: "Keep savehist ring limits consistent"
+Result: src/dk-defaults.el (ring sizes 200/100/100, plain variable list, hook),
+src/dk-functions.el (`dk/savehist-strip-kill-ring', in place so the yank pointer
+stays valid), cheatsheet.md.  Verified values; propertized entries stripped.
+
+
+## [x] T25 · Move lock files out of project trees; fix .gitignore gaps
+
+Files: src/dk-vars.el, src/dk-defaults.el (~13), .gitignore
+Problem: `create-lockfiles t` writes .#file symlinks next to edited files
+(git status noise, file-watcher triggers).  Also `autosave/` (used by
+`dk/auto-save-directory`) and `*.elc` (made by `dk/recompile-config`) are
+not git-ignored.
+Change:
+  - `dk/lock-directory` in dk-vars.el ("locks/" under user-emacs-directory,
+    trailing slash, docstring like the auto-save one).
+  - In dk-defaults.el: `make-directory` it and set
+    `lock-file-name-transforms` to `((".*" ,dk/lock-directory t))`.
+    Comment: locking still protects against other local Emacs sessions; for
+    TRAMP files cross-machine lock detection is lost (acceptable).
+  - .gitignore: add `autosave/`, `locks/`, `*.elc`.
+Verify: in the sandbox, visit a temp file, modify it, check that the lock
+appears under $SB/locks/ and not beside the file.
+Commit: "Keep lock files out of project directories"
+Result: src/dk-vars.el (`dk/lock-directory'), src/dk-defaults.el
+(`lock-file-name-transforms'), .gitignore (autosave/, locks/, *.elc).  Sandbox:
+lock created under $SB/locks/, none beside the file.
+
+
+## [x] T26 · Back up version-controlled files too  [ASK]
+
+Files: src/dk-defaults.el (~15-24)
+Problem: `vc-make-backup-files` is nil, so the numbered-backup setup never
+covers git-tracked files — most of what is edited.
+Question: "Also keep numbered backups of git-tracked files (first save per
+session, local files only)?"
+  1. (Recommended) Yes.
+  2. No — git is the backup (skip, but add a comment saying so).
+Decision: 1 — yes.
+Change: `(setq vc-make-backup-files t)` next to the backup settings with a
+comment; or only the comment for option 2.
+Verify: value after load.
+Commit: "Back up version-controlled files"
+Result: src/dk-defaults.el (`vc-make-backup-files' t, comment), cheatsheet.md.
+Value t after load.
+
+
+## [x] T27 · Clean recentf and save it periodically under the daemon
+
+Files: src/dk-vars.el, src/dk-navigation.el (~13-21)
+Problem: no `recentf-exclude`, so elpa sources, COMMIT_EDITMSG, /tmp files
+and backup/autosave files fill C-x C-r; under the systemd daemon recentf is
+only written on a clean exit, so a crash loses the session's list.
+Change:
+  - `recentf-exclude` in `:custom`: regexps for the elpa directory
+    (`package-user-dir`), `dk/backup-directory`, `dk/auto-save-directory`,
+    `temporary-file-directory`, and "/COMMIT_EDITMSG\\'"
+    (use `regexp-quote` on directory names).
+  - A periodic save: `dk/recentf-save-timer` (defvar in dk-vars.el) holding
+    `(run-with-idle-timer 300 t #'dk/recentf-save-quietly)`; cancel an
+    existing timer first so reloading the module does not stack timers.
+    `dk/recentf-save-quietly` (dk-functions.el) calls `recentf-save-list`
+    with `inhibit-message` bound to t.
+Verify: `recentf-exclude` value; `(recentf-include-p
+"<elpa>/foo/foo.el")` nil, ordinary file t; reloading dk-navigation twice
+leaves exactly one timer (`timer-idle-list`).
+Commit: "Exclude noise from recentf and save it periodically"
+Result: src/dk-vars.el (`dk/recentf-save-timer'), src/dk-functions.el
+(`dk/recentf-directory-regexp' matches both ~/ and expanded names,
+`dk/recentf-save-quietly'), src/dk-navigation.el, cheatsheet.md.  elpa, /tmp and
+COMMIT_EDITMSG excluded, ordinary file kept; one timer after reloading twice.
+
+
+## [x] T28 · Document Customize precedence
+
+Files: init.el (~27-36 comment), cheatsheet.md (or install.md)
+Problem: custom.el loads before the modules, so a value set with M-x
+customize for a variable a module also sets is silently overwritten at the
+next startup.
+Change: documentation only — make the init.el comment state the rule
+plainly ("Customize works only for options no module sets; to change those,
+edit the module or a dk/* variable") and add the same one-paragraph note to
+cheatsheet.md.
+Verify: smoke test.
+Commit: "Document Customize precedence"
+Result: init.el comment, cheatsheet.md (Configuration section).  Smoke test OK.
+
+
+==========================================================================
+P4 — CLEANUP
+==========================================================================
+
+## [x] T29 · Use the built-in kill-current-buffer
+
+Files: src/dk-functions.el (~131-134), src/dk-keymap.el (~46),
+       test/ (if referenced), cheatsheet.md
+Problem: `dk/kill-current-buffer` duplicates built-in `kill-current-buffer`.
+Change: bind C-c k to `kill-current-buffer`, delete the dk/ function, grep
+for other references.
+Verify: key-binding C-c k; grep shows no `dk/kill-current-buffer`.
+Commit: "Use built-in kill-current-buffer"
+Result: src/dk-functions.el (function removed), src/dk-keymap.el, cheatsheet.md.
+C-c k -> kill-current-buffer; no dk/kill-current-buffer left in src/ or test/.
+
+
+## [x] T30 · Remove stale code and comments
+
+Files: src/dk-programming.el (~65-73), src/dk-completion.el (~95-103),
+       src/dk-vars.el (~39-40), test/dk-integration-test.el (~16-27)
+Problem: leftovers from earlier versions:
+  - `(advice-remove 'eglot--format-markup #'dk/eglot-clean-haskell-markdown)`
+    refers to a function that no longer exists (only byte-compile warning).
+  - The NOTE about `eglot-put-doc-in-buffer` / `eglot-code-actions-indications`
+    ("re-add on Emacs 31+") — now on 31.1: check with `boundp` after
+    `(require 'eglot)`.  If they exist, report it to the user (do NOT re-add
+    settings unasked); either way rewrite the note to reflect 31.1.
+  - The `completion-pcm-leading-wildcard` comment talks about 30.x as current.
+  - `dk/minibuffer-font-height` docstring says it is the minibuffer-prompt
+    face height; it is the height of the whole minibuffer (remapped default).
+Change: delete the advice-remove line (and the dk/eglot-preserves-mixed-
+markdown-input test's `advice-member-p` assertion only if it becomes
+meaningless — keep the rendering assertions); fix the comments/docstring.
+Verify: byte-compile reports no warnings; ERT passes.
+Commit: "Remove stale eglot advice and outdated notes"
+Result: src/dk-programming.el (advice-remove gone, eglot note rewritten for 31.1),
+src/dk-completion.el, src/dk-vars.el, test/dk-integration-test.el (advice
+assertion removed, rendering kept).  31.1 has neither old variable but has
+`eglot-code-action-indications' (reported, not set).  No compile warnings; ERT OK.
+
+
+## [x] T31 · Guard dk/package-list against drift with a test
+
+Files: test/dk-packages-test.el (new), src/dk-packages.el
+Problem: `dk/package-list` repeats every ensured `use-package` by hand; the
+two can drift silently.
+Change: add an ERT test that reads every form in src/*.el (recursively —
+`use-package flyspell` sits inside a `let`), collects `use-package` names
+whose plist does not contain `:ensure nil`, and asserts that set equals
+`dk/package-list`.  Mention the test in dk-packages.el's docstring for the
+list.  Add the file to the ERT command in this prompt's step 6.
+Verify: test passes now; removing a name from the list in the sandbox makes
+it fail.
+Commit: "Test that the package list matches use-package forms"
+Result: test/dk-packages-test.el (new), src/dk-packages.el docstring, step 6
+command above.  Passes; removing `avy' from the list in the sandbox fails it.
+
+
+## [-] T32 · Let xref wait for a starting server from sibling buffers (optional)  [ASK]
+
+Files: src/dk-vars.el, src/dk-functions.el (~187-217), test/dk-functions-test.el
+Problem: `dk/eglot-connecting-server` is buffer-local to the buffer that
+triggered the connection; other buffers of the same project opened during
+startup jump straight to the etags fallback.
+Question: "Extend the xref startup wait to all buffers of the project?"
+  1. Yes.
+  2. No (skip) — recommended if early jumps from other buffers are rare.
+Decision: 2 — no (skip).
+Change (option 1): record (SERVER ROOT MODE) in a global list
+`dk/eglot-starting-servers` from `eglot-server-initialized-hook` (ROOT from
+`(project-root (project-current))` in the triggering buffer, MODE its major
+mode); prune entries whose server is no longer running or that became
+managed; `dk/eglot-connecting-p` also returns non-nil when a live entry has
+the current buffer's project root and `(derived-mode-p MODE)`.  Use only
+public API (no eglot-- internals).  Extend the tests.
+Verify: ERT including a new case for a sibling buffer.
+Commit: "Wait for a starting LSP server from any project buffer"
+Result: skipped by user decision: early jumps from sibling buffers are
+rare, so the extra global server tracking is not worth it.

@@ -7,9 +7,13 @@
 
 (require 'dk-functions)                 ; `dk/M-x-dwim', `dk/newline-below', ...
 
-;; ESC cancels the current interaction, including an active minibuffer, like C-g.
-;; `keyboard-quit' only signals a quit, which leaves `M-x' showing [Quit].
+;; ESC cancels the region, a prefix argument, the minibuffer or a recursive
+;; edit, but never touches the window layout: the advice (dk-functions.el)
+;; removes the `delete-other-windows' fallback.  `keyboard-quit' only signals a
+;; quit, which leaves `M-x' showing [Quit].  The command itself stays bound so
+;; corfu's `[remap keyboard-escape-quit]' keeps closing its popup.
 (global-set-key (kbd "<escape>") #'keyboard-escape-quit)
+(advice-add 'keyboard-escape-quit :around #'dk/escape-quit-keep-windows)
 
 (global-set-key (kbd "C-x C-b") #'ibuffer)   ; ibuffer, not the plain buffer list
 (global-set-key (kbd "M-o") #'other-window)  ; shorter than C-x o
@@ -26,8 +30,12 @@
 ;; wherever point happens to be.  See dk-functions.el for why this is a command
 ;; and no longer the `C-e C-m' keyboard macro.
 (global-set-key (kbd "S-<return>") #'dk/newline-below)
+;; Terminal-safe alternate: most terminals send S-RET as a plain RET.
+(global-set-key (kbd "C-c o") #'dk/newline-below)
 
-;; C-= (er/expand-region) is bound from its own `use-package' in dk-defaults.el.
+;; C-= (er/expand-region) is bound from its own `use-package' in dk-defaults.el,
+;; together with its terminal-safe alternate C-c v.  The other GUI-only keys
+;; (C-. C-; C-> C-< C-S-s) get their C-c alternates next to their packages too.
 
 ;; Case changes.  The -dwim commands act on the region when one is active and on
 ;; the word after point otherwise -- unlike `upcase-word' and friends, which
@@ -43,8 +51,8 @@
 ;; start a second one; see dk-functions.el.
 (global-set-key (kbd "M-x") #'dk/M-x-dwim)
 
-(global-set-key (kbd "C-c k") #'dk/kill-current-buffer) ; kill without confirming which
-(global-set-key (kbd "C-c e") #'eval-buffer)            ; re-evaluate an elisp buffer
+(global-set-key (kbd "C-c k") #'kill-current-buffer) ; kill without confirming which
+;; C-c e (eval-buffer) is bound in the Emacs Lisp maps only; see dk-programming.el.
 
 ;; Minibuffer editing: Shift-Backspace kills the previous word.
 ;; `minibuffer-local-map' is the parent of every other minibuffer keymap

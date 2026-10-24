@@ -88,17 +88,19 @@
   ;; orderless first, `basic' behind it as the fallback that still does exact
   ;; prefix matching -- which is what TRAMP and a few other back-ends rely on.
   (completion-styles '(orderless basic))
-  ;; File names are the exception: `partial-completion' is what expands
-  ;; /u/s/l into /usr/share/lib, and orderless would ignore the separators.
-  (completion-category-overrides '((file (styles partial-completion)))))
+  ;; File names get their own order, tried left to right until one matches:
+  ;; `basic' first, because TRAMP method and host completion (/ssh:ho TAB)
+  ;; and literal prefixes rely on it; `partial-completion' next, which is
+  ;; what expands /u/s/l into /usr/share/lib; orderless last, as the fallback
+  ;; for space-separated words -- "emacs init" in `consult-recent-file'.
+  (completion-category-overrides
+   '((file (styles basic partial-completion orderless)))))
 
 ;; Let `partial-completion' match in the middle of a component too, so "log"
 ;; finds "catalog.txt" and not just files starting with "log".
 ;;
-;; Emacs 31 and later only -- the variable does not exist in 30.x, where this
-;; sat in the `:custom' block above and quietly set a symbol nothing reads.
-;; Guarded rather than deleted so the behaviour arrives on its own with the
-;; next Emacs; same treatment as the eglot note in dk-programming.el.
+;; The variable is new in Emacs 31.  The guard is for 30.x, which is still the
+;; supported minimum (install.md): there it would set a symbol nothing reads.
 (when (boundp 'completion-pcm-leading-wildcard)
   (setopt completion-pcm-leading-wildcard t))
 
@@ -123,11 +125,15 @@
          ;; `haskell-ts-format'.  `C-c <letter>' is the space reserved for the
          ;; user, so nothing upstream can claim it.
          ("C-c f"   . consult-find)            ;; find(1) under a directory
-         ("C-s"     . consult-line)            ;; search lines in this buffer
+         ;; Search lines in this buffer.  Deliberately not paired with C-r,
+         ;; which stays `isearch-backward': see the Search section of
+         ;; dk-defaults.el for the split.
+         ("C-s"     . consult-line)
          ;; Repeat that search with its previous string, the way C-s C-s does in
          ;; isearch.  GUI only: a terminal cannot tell C-S-s from C-s, so there
          ;; this key just arrives as C-s and starts a fresh `consult-line'.
          ("C-S-s"   . dk/consult-line-repeat)
+         ("C-c s"   . dk/consult-line-repeat)  ;; terminal-safe alternate
          ("C-x C-r" . consult-recent-file)
          ("C-c ?"   . consult-flymake)         ;; jump through the diagnostics
          ("C-c m"   . consult-mode-command)    ;; only the current mode's commands
@@ -154,9 +160,11 @@
   ;; `ensure-list' because the variable is documented as a string *or* a list;
   ;; it is a string today, and `consult--build-args' accepts either, so going
   ;; through a list keeps this working if that default is ever changed.
+  ;; The trailing slash makes each glob match directories only (gitignore
+  ;; semantics), so a plain file that happens to share a name is searched.
   (setq consult-ripgrep-args (ensure-list consult-ripgrep-args))
   (dolist (dir dk/project-ignored-directories)
-    (add-to-list 'consult-ripgrep-args (format "--glob=!%s" dir) t)))
+    (add-to-list 'consult-ripgrep-args (format "--glob=!%s/" dir) t)))
 
 ;; The other half of the C-r story: shells and REPLs keep a real history too.
 ;; Kept outside the `use-package' above because that block only runs once consult
@@ -172,6 +180,9 @@
 (use-package embark
   :bind (("C-." . embark-act)         ;; menu of actions for the thing at point
          ("C-;" . embark-dwim)        ;; run the most likely action without asking
+         ;; Terminal-safe alternates: a terminal sends nothing usable for C-. C-;
+         ("C-c x" . embark-act)
+         ("C-c X" . embark-dwim)
          ("C-h B" . embark-bindings)) ;; every binding available here, searchable
   :init
   ;; With 3 or fewer candidates, TAB just cycles them instead of popping up a
@@ -204,18 +215,25 @@
   (corfu-preview-current t)         ;; show the selected candidate inline in the buffer
   (corfu-quit-no-match t)           ;; nothing matches -> get out of the way
   (corfu-scroll-margin 5)           ;; context rows kept visible while scrolling
-  (corfu-preselect :first)          ;; first candidate selected, so RET takes it
+  (corfu-preselect :first)          ;; first candidate selected, so TAB takes it
   :bind
-  ;; RET (corfu-insert) and C-g (corfu-quit) are corfu's own defaults and are
-  ;; not restated here.  TAB is: upstream puts `corfu-complete' on it, which
-  ;; extends the common prefix rather than taking the candidate.
+  ;; TAB is the only key that accepts a candidate.  Upstream puts
+  ;; `corfu-complete' on it, which extends the common prefix rather than taking
+  ;; the candidate.  C-g (corfu-quit) is corfu's own default and not restated.
   (:map corfu-map
         ("TAB"     . corfu-insert)
         ("M-d"     . corfu-popupinfo-toggle) ;; toggle doc popup
         ("M-l"     . corfu-show-location))   ;; jump to candidate source
   :init
   (global-corfu-mode 1)
-  (corfu-popupinfo-mode 1))           ;; docs/signature in a pane next to the popup
+  (corfu-popupinfo-mode 1)            ;; docs/signature in a pane next to the popup
+  :config
+  ;; RET is always a newline (or "send" at a comint prompt), popup or not.
+  ;; With `corfu-auto' and a preselected candidate, corfu's default RET ->
+  ;; `corfu-insert' turned "the" RET into "there" and swallowed shell input.
+  ;; Unbound here, RET falls through to the buffer's own binding, and the
+  ;; popup closes because that command is not one corfu continues on.
+  (keymap-unset corfu-map "RET" t))
 
 ;; Extra completion-at-point back-ends.  These are what corfu falls back on in
 ;; buffers with no LSP: file names and words already in the buffer.

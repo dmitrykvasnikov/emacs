@@ -2,7 +2,8 @@
 
 ;;; Moving around: files, directories, projects
 
-(require 'dk-vars)                      ; `dk/project-ignored-directories'
+(require 'dk-vars)                      ; ignored and excluded directories
+(require 'dk-functions)                 ; `dk/dired-remote-safety', recentf helpers
 
 ;; Jump straight to visible text using short on-screen hint keys.  M-g c is the
 ;; natural replacement for the rarely-used numeric `goto-char'; that command
@@ -13,12 +14,39 @@
 ;; The list of recently visited files, persisted across sessions.  It is what
 ;; backs `consult-recent-file' (C-x C-r) and the recent-file section of
 ;; `consult-buffer'.
+;;
+;; Files nobody reopens by name are kept out: package sources visited through
+;; M-., backups and auto-saves, scratch files in /tmp and commit messages.
+;; The list is otherwise written only when Emacs exits cleanly, which the
+;; daemon rarely does, so an idle timer also saves it every five minutes; the
+;; old timer is cancelled first so that reloading this module keeps one.
 (use-package recentf
   :ensure nil                           ; built-in
   :custom
   (recentf-max-menu-items 15)           ; entries shown in the File menu
   (recentf-max-saved-items 300)         ; entries kept in the file on disk
-  :init (recentf-mode))
+  (recentf-exclude
+   `(,(dk/recentf-directory-regexp package-user-dir)
+     ,(dk/recentf-directory-regexp dk/backup-directory)
+     ,(dk/recentf-directory-regexp dk/auto-save-directory)
+     ,(dk/recentf-directory-regexp temporary-file-directory)
+     "/COMMIT_EDITMSG\\'"))
+  :init (recentf-mode)
+  :config
+  (when (timerp dk/recentf-save-timer)
+    (cancel-timer dk/recentf-save-timer))
+  (setq dk/recentf-save-timer
+        (run-with-idle-timer 300 t #'dk/recentf-save-quietly)))
+
+;; C-x C-b opens ibuffer (dk-keymap.el), usually in another window -- right
+;; where M-o is pressed to get back.  ibuffer's own M-o is
+;; `ibuffer-visit-buffer-1-window', which visits the buffer at point and
+;; deletes every other window; restore the global `other-window' instead.
+;; The shadowed command stays on M-x and ibuffer's menu.
+(use-package ibuffer
+  :ensure nil                           ; built-in
+  :bind (:map ibuffer-mode-map
+              ("M-o" . other-window)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Dired
@@ -26,11 +54,18 @@
   :ensure nil                           ; built-in
   :commands (dired dired-jump)
   :bind (("C-x C-j" . dired-jump))      ; open dired on the current file's directory
+  ;; Remote buffers ask before a recursive delete; see `dk/dired-remote-safety'.
+  :hook (dired-mode . dk/dired-remote-safety)
   :config
   ;; Flags handed to ls(1): -a all files, -g like -l but without the owner
   ;; column, -h human-readable sizes, -o without the group column.
+  ;; --group-directories-first is GNU ls only: a BSD/macOS host reached over
+  ;; TRAMP needs it dropped (or GNU coreutils installed there).
   (setq dired-listing-switches "-agho --group-directories-first"
-        ;; Recurse into directories on C/D without asking "recursive?" each time.
+        ;; Recurse into directories on C/D without asking "recursive?" each
+        ;; time.  Deletes are safe to recurse because they go to the trash
+        ;; (dk-defaults.el); remote buffers, which have no trash, override
+        ;; this with 'top from `dk/dired-remote-safety'.
         dired-recursive-copies 'always
         dired-recursive-deletes 'always
         ;; With two dired windows open, the other one's directory is the default
@@ -60,16 +95,22 @@
   :ensure nil                           ; built-in
   :demand t
   :custom
-  ;; `project-try-vc' only recognises VC roots.  These markers make a plain
-  ;; directory a root too -- and make a subdirectory of a git repo its own
-  ;; root, which is what you want in a cabal or cargo workspace.
-  (project-vc-extra-root-markers '("*.cabal" "stack.yaml" "Cargo.toml"
-                                   "go.mod" "compile_commands.json"))
+  ;; `project-try-vc' only recognises VC roots.  These markers exist to give a
+  ;; directory outside any repository a root.  The nearest marker wins, so
+  ;; they are workspace-level files only: a per-package marker (Cargo.toml,
+  ;; *.cabal, go.mod) would make every workspace member its own project, and
+  ;; eglot -- which uses the project root as the server root -- would start
+  ;; one LSP server per member.  Inside git the repository root, or a
+  ;; workspace file below it, stays the root.  The cost: a lone crate outside
+  ;; git becomes a project only once its first build writes Cargo.lock, and a
+  ;; lone cabal package outside git needs a cabal.project.
+  (project-vc-extra-root-markers '("cabal.project" "stack.yaml" "Cargo.lock"
+                                   "go.work" "compile_commands.json"))
   ;; Build output kept out of C-x p f and C-x p d.  `project-files' reaches the
   ;; file list two different ways and this is the one setting both of them
   ;; honour: at the VC root it becomes a `:(exclude,glob,top)' pathspec on
   ;; `git ls-files', and anywhere else -- a root found by a marker above rather
-  ;; than by git, say a package inside a cabal workspace -- it comes back
+  ;; than by git, say a cabal workspace outside any repository -- it comes back
   ;; through `project-ignores' into the find(1) call.  See dk-vars.el for why a
   ;; net is needed at all when .gitignore already exists.
   ;;

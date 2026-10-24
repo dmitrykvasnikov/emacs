@@ -28,9 +28,12 @@
 ;; customize' is written to custom.el instead of being appended here.  That file
 ;; is git-ignored.  It is loaded before the modules chiefly so that values for
 ;; the `dk/*' variables, which are defined with `defvar', win over their defaults.
-;; Options set explicitly by a module -- in a `use-package :custom' clause, for
-;; example -- remain source-controlled and intentionally take precedence over
-;; custom.el.
+;;
+;; The rule that follows: Customize works only for options no module sets.  A
+;; module that sets an option -- with `setq', `setopt' or a `use-package
+;; :custom' clause -- runs after custom.el and silently overwrites the
+;; customized value at every startup.  To change such an option, edit the
+;; module, or the `dk/*' variable it reads.
 (setopt custom-file (locate-user-emacs-file "custom.el"))
 (when (file-exists-p custom-file)
   (load custom-file nil t))

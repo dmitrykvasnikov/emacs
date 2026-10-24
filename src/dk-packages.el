@@ -50,7 +50,9 @@
     multiple-cursors nerd-icons nerd-icons-corfu nerd-icons-dired orderless
     org-appear org-modern rainbow-delimiters rustic rust-mode spacemacs-theme
     valign vertico vundo wgrep)
-  "Third-party packages used by this configuration.")
+  "Third-party packages used by this configuration.
+It must name every `use-package' declaration in src/ without `:ensure
+nil'; test/dk-packages-test.el fails when the two drift apart.")
 
 (defun dk/install-packages (&optional refresh)
   "Install missing packages from `dk/package-list'.

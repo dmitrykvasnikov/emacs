@@ -6,6 +6,7 @@
 ;; named (instead of inline lambdas) means a hook can be removed again and a
 ;; module can be re-loaded without stacking duplicates.
 
+(require 'cl-lib)                       ; `cl-letf' in `dk/escape-quit-keep-windows'
 (require 'dk-vars)                      ; shared command and hook settings
 
 ;; Called only under a `derived-mode-p' guard, so org is loaded by then; this
@@ -15,7 +16,16 @@
 (declare-function cape-dabbrev "cape" (&optional interactive))
 (declare-function dk/add-to-confdir "../early-init" (relative-path))
 (declare-function eglot-managed-p "eglot" ())
+(declare-function recentf-save-list "recentf" ())
 (declare-function face-remap-remove-relative "face-remap" (cookie))
+(declare-function gfm-mode "markdown-mode" ())
+(declare-function gfm-view-mode "markdown-mode" ())
+(declare-function markdown-mode "markdown-mode" ())
+(declare-function markdown-view-mode "markdown-mode" ())
+
+(defvar corfu-auto)
+(defvar recentf-mode)
+(defvar go-ts-mode-indent-offset)
 
 (defvar-local dk/font-remap-cookie nil
   "Cookie for the font remapping installed by `dk/change-font'.")
@@ -51,25 +61,70 @@
   "Turn on `xterm-mouse-mode' for a terminal frame."
   (xterm-mouse-mode 1))
 
+(defun dk/dired-remote-safety ()
+  "Ask before recursive deletes in a remote Dired buffer.
+Locally `delete-by-moving-to-trash' makes `dired-recursive-deletes'
+\\='always safe: a deleted tree can be restored from the trash.  Over
+TRAMP there is no trash and the delete is permanent, so make Dired ask
+\"Recursively delete?\" for each top-level directory there."
+  (when (file-remote-p default-directory)
+    (setq-local dired-recursive-deletes 'top)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Persisted histories
+(defun dk/savehist-strip-kill-ring ()
+  "Remove text properties from the string entries of `kill-ring'.
+Run from `savehist-save-hook', so the history file holds plain strings
+instead of each entry's font-lock faces.  The entries are replaced in
+place, which keeps `kill-ring-yank-pointer' (a tail of the same list)
+valid.  Trade-off: the live entries lose their properties too, such as a
+`yank-handler', at each save -- yanking them later inserts plain text."
+  (let ((tail kill-ring))
+    (while tail
+      (when (stringp (car tail))
+        (setcar tail (substring-no-properties (car tail))))
+      (setq tail (cdr tail)))))
+
+(defun dk/recentf-directory-regexp (directory)
+  "Return a regexp matching file names under DIRECTORY, for `recentf-exclude'.
+recentf abbreviates names before checking them (~/... rather than
+/home/...), so both the expanded and the abbreviated spelling match."
+  (let ((dir (file-name-as-directory (expand-file-name directory))))
+    (concat "\\`"
+            (regexp-opt (delete-dups (list dir (abbreviate-file-name dir)))))))
+
+(defun dk/recentf-save-quietly ()
+  "Save the recent-file list without a message in the echo area.
+Run from the idle timer in `dk/recentf-save-timer', so a crash of a
+long-running daemon loses at most a few minutes of recent files."
+  (when recentf-mode
+    (let ((inhibit-message t))
+      (recentf-save-list))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Helpful helpers
 (defun dk/helpful-open (buf)
-  "Display helpful buffer BUF in a split when the frame has room.
-If the current window has full frame width, split right; otherwise split
-below.  Point stays where it was when a split succeeds, so the docs can be
-read and dismissed without moving into them.  If the frame is too small to
-split, use the current window instead of raising an error.
+  "Display helpful buffer BUF, reusing a helpful window when there is one.
+From inside a helpful buffer -- following a link -- BUF replaces it in the
+same window.  Elsewhere, a visible helpful window is reused; failing that
+the frame is split, to the right when the current window has full frame
+width and below otherwise; and if the frame is too small to split, the
+current window is used.  Point stays where it was, so the docs can be read
+and dismissed without moving into them.  Going through `display-buffer'
+records quit-restore parameters, so q in the helpful window steps back
+through the helpful buffers it has shown and, once at the first, deletes
+the window it was split into.
 `helpful-switch-buffer-function' is called after `helpful-update' has
 already run inside BUF, and its return value is discarded, so declining
-to select the new window is safe."
-  (let ((win (condition-case nil
-                 (if (window-full-width-p)
-                     (split-window-right)
-                   (split-window-below))
-               (error nil))))
-    (if win
-        (set-window-buffer win buf)
-      (switch-to-buffer buf))))
+to select the window is safe."
+  (if (derived-mode-p 'helpful-mode)
+      (pop-to-buffer-same-window buf)
+    (display-buffer
+     buf `((display-buffer-reuse-mode-window
+            display-buffer-in-direction
+            display-buffer-same-window)
+           (mode . helpful-mode)
+           (direction . ,(if (window-full-width-p) 'right 'below))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Config maintenance
@@ -128,10 +183,15 @@ created later; a buffer-local change follows the buffer between windows."
       (switch-to-minibuffer)
     (call-interactively #'execute-extended-command)))
 
-(defun dk/kill-current-buffer ()
-  "Kill the current buffer without asking which one."
-  (interactive)
-  (kill-buffer (current-buffer)))
+(defun dk/escape-quit-keep-windows (orig-fun &rest args)
+  "Run ORIG-FUN (`keyboard-escape-quit') without deleting windows.
+Around advice.  When there is nothing else to cancel,
+`keyboard-escape-quit' falls through to `delete-other-windows'; claiming
+the frame already has a single window skips that branch and leaves the
+layout alone.  Every earlier branch -- region, minibuffer, prefix
+argument, recursive edit -- still runs."
+  (cl-letf (((symbol-function 'one-window-p) #'always))
+    (apply orig-fun args)))
 
 (defun dk/newline-below ()
   "Open a new line below point and indent it, regardless of column.
@@ -172,17 +232,44 @@ with `cape-capf-prefix-length'."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Language hooks
-(defun dk/no-clang-format-p ()
-  "Non-nil in a C/C++ buffer whose tree carries no clang-format file.
-Used from `apheleia-inhibit-functions'.  Without it apheleia would
-reformat every C buffer to clang-format's built-in LLVM style; the
-per-buffer `before-save-hook' this replaced was conditional in the same
-way.  Both .clang-format and _clang-format are recognised, matching the
-clang-format binary.  The ts and classic modes are both listed because
-`c-ts-mode' does not derive from `c-mode'."
-  (and (derived-mode-p '(c-ts-mode c++-ts-mode c-mode c++-mode))
-       (not (or (locate-dominating-file default-directory ".clang-format")
-                (locate-dominating-file default-directory "_clang-format")))))
+(defun dk/apheleia-inhibit-p ()
+  "Non-nil when apheleia should not format the current buffer on save.
+Used from `apheleia-inhibit-functions', so formatting is opt-in per tree
+for the languages whose formatter would otherwise impose one style on
+every project:
+
+- C/C++ without a .clang-format or _clang-format file in a dominating
+  directory.  Otherwise every C buffer would be reformatted to
+  clang-format's built-in LLVM style.  Both names are recognised,
+  matching the clang-format binary, and the ts and classic modes are both
+  listed because `c-ts-mode' does not derive from `c-mode'.
+- Haskell (`haskell-mode', and `haskell-ts-mode', which registers it as a
+  parent) without a fourmolu.yaml in a dominating directory.  A project
+  formatted with ormolu, stylish-haskell or by hand would otherwise be
+  rewritten in fourmolu's default style on its first save.
+- Every `lisp-data-mode' buffer, which covers `emacs-lisp-mode' and
+  `lisp-interaction-mode'.  apheleia's lisp-indent re-indents the whole
+  file, turning each save into a diff over lines that were never touched.
+
+apheleia consults this when it turns `apheleia-mode' on for a buffer, so
+a configuration file added later takes effect after \\[revert-buffer]."
+  (cond
+   ((derived-mode-p '(c-ts-mode c++-ts-mode c-mode c++-mode))
+    (not (or (locate-dominating-file default-directory ".clang-format")
+             (locate-dominating-file default-directory "_clang-format"))))
+   ((derived-mode-p '(haskell-mode haskell-ts-mode))
+    (not (locate-dominating-file default-directory "fourmolu.yaml")))
+   ((derived-mode-p 'lisp-data-mode))))
+
+(defun dk/go-ts-tab-width ()
+  "Display a tab as wide as one `go-ts-mode' indentation step.
+Go indents with tabs (gofmt rewrites leading whitespace to one tab per
+level), while `go-ts-mode-indent-offset' is the step Emacs indents by as
+you type.  With the default `tab-width' of 8 and a step of 4, a typed
+first level came out as four spaces, gofmt turned it into a tab drawn 8
+wide, and indentation jumped on every save.  Matching the two makes one
+level one tab, displayed at the configured width; the file is unchanged."
+  (setq-local tab-width go-ts-mode-indent-offset))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Wait only for a server that has actually started initializing.  A mode hook
@@ -232,9 +319,35 @@ kept the full-size `default' face and only the prompt shrank.  Remapping
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Prose display
 (defun dk/prose-display ()
-  "Prose-friendly display: soft wrapping and a bit of extra line spacing."
+  "Prose-friendly display: soft wrapping, a bit of extra line spacing,
+and no automatic completion popup.  In prose nearly every word has
+dabbrev candidates, so `corfu-auto' would pop up after each one; TAB and
+M-TAB still complete on demand.  Setting it buffer-locally from the
+major-mode hook is enough: `global-corfu-mode' turns `corfu-mode' on only
+after the mode hooks have run, and corfu reads `corfu-auto' at that point."
   (visual-line-mode 1)
-  (setq-local line-spacing 0.15))
+  (setq-local line-spacing 0.15)
+  (setq-local corfu-auto nil))
+
+(defun dk/markdown-toggle-view ()
+  "Switch between editing Markdown and its read-only rendered view.
+From `gfm-mode' (or plain `markdown-mode') enter `gfm-view-mode' (or
+`markdown-view-mode'); from either view mode return to the matching
+editing mode.  `gfm-view-mode' derives from `gfm-mode', not from
+`markdown-view-mode', so both view modes are tested for, and before
+`gfm-mode'.  The view modes turn on `read-only-mode', which a major-mode
+switch does not undo, so on the way back `buffer-read-only' is restored
+from the file's own permissions.  That happens before the switch, not
+after: `global-corfu-mode' skips read-only buffers when the new mode
+starts, and would otherwise leave corfu off in the editing buffer."
+  (interactive)
+  (cond
+   ((derived-mode-p '(gfm-view-mode markdown-view-mode))
+    (setq buffer-read-only
+          (and buffer-file-name (not (file-writable-p buffer-file-name))))
+    (if (derived-mode-p 'gfm-view-mode) (gfm-mode) (markdown-mode)))
+   ((derived-mode-p 'gfm-mode) (gfm-view-mode))
+   (t (markdown-view-mode))))
 
 (provide 'dk-functions)
 ;;; dk-functions.el ends here

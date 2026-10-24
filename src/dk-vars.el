@@ -16,6 +16,17 @@ dropped, and every auto-save lands in `user-emacs-directory' instead.")
 (defvar dk/backup-directory (expand-file-name "backups/" user-emacs-directory)
   "Directory where numbered backup versions of local files are kept.")
 
+(defvar dk/lock-directory (expand-file-name "locks/" user-emacs-directory)
+  "Directory where file locks (.#foo symlinks) are kept, out of the project.
+The trailing slash is load-bearing for the same reason as in
+`dk/auto-save-directory': `lock-file-name-transforms' uses the UNIQUIFY
+flag, which runs the replacement through `file-name-directory'.")
+
+(defvar dk/recentf-save-timer nil
+  "Idle timer that saves the recent-file list periodically.
+Set in dk-navigation.el.  Kept in a variable so that reloading the module
+cancels the previous timer instead of stacking a second one.")
+
 (defvar dk/font-families
   '("Aporetic Sans Mono"
     "Iosevka"
@@ -37,7 +48,9 @@ font.  In particular, Aporetic Sans Mono omits those OpenType features.")
   "Height (1/10 pt) of the `default' face.")
 
 (defvar dk/minibuffer-font-height 100
-  "Height (1/10 pt) of the `minibuffer-prompt' face.")
+  "Height (1/10 pt) of the whole minibuffer, prompt and candidates.
+Applied by `dk/minibuffer-small-font' as a buffer-local remapping of the
+`default' face.")
 
 (defvar dk/theme 'gruber-darker
   "Theme loaded at start-up by src/dk-theme.el.")
@@ -46,17 +59,15 @@ font.  In particular, Aporetic Sans Mono omits those OpenType features.")
   "Root directory of the org files, used for `org-agenda-files'.")
 
 (defvar dk/project-ignored-directories
-  '(;; Haskell -- cabal v2, cabal v1, stack, and the .hie files HLS writes
-    "dist-newstyle" "dist" ".stack-work" ".hie"
+  '(;; Haskell -- cabal v2, stack, and the .hie files HLS writes
+    "dist-newstyle" ".stack-work" ".hie"
     ;; Rust
     "target"
-    ;; C/C++ -- out-of-source cmake builds, CLion's variants, clangd's index
-    "build" "cmake-build-*" ".cache"
-    ;; Go -- vendored dependencies
-    "vendor"
+    ;; C/C++ -- CLion's out-of-source cmake builds, clangd's index
+    "cmake-build-*" ".cache"
     ;; Not a language here, but they turn up beside one often enough
     "node_modules" ".direnv")
-  "Build and cache directories to keep out of project file lists and searches.
+  "Generated directories to keep out of project file lists and searches.
 Referenced from `project-vc-ignores' and `grep-find-ignored-directories'
 \(dk-navigation.el) and from `consult-ripgrep-args' (dk-completion.el).
 
@@ -67,11 +78,21 @@ directory is already handled.  The net matters for the projects that do
 not -- there the whole of dist-newstyle lands in C-x p f -- and for roots
 found by `project-vc-extra-root-markers' outside any repository.
 
-Entries are bare directory names, which is the form
-`grep-find-ignored-directories' and rg's --glob both want.  Globs are
-allowed, hence \"cmake-build-*\".
+The net applies at any depth and overrides what git tracks, so it holds
+only names that are always generated.  Generic names such as \"build\",
+\"dist\" and \"vendor\" are left out on purpose: plenty of projects keep
+hand-written sources or vendored code under them, and those files would
+silently vanish from C-x p f and every search.  A project that needs
+more can set `project-vc-ignores' in its own .dir-locals.el (the variable
+is `safe-local-variable' for lists).
 
-`project-vc-ignores' needs each name with a trailing slash instead, and
+Entries are bare directory names, which is the form
+`grep-find-ignored-directories' wants.  Globs are allowed, hence
+\"cmake-build-*\".  dk-completion.el turns each into an rg
+`--glob=!NAME/' -- the trailing slash restricts it to directories, so a
+plain file of the same name is still searched.
+
+`project-vc-ignores' needs each name with a trailing slash too, and
 dk-navigation.el appends one there.  That is not cosmetic: a bare name
 becomes the pathspec `**/NAME', which matches the directory entry but
 none of the files under it, so the setting silently does nothing --

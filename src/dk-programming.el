@@ -5,7 +5,7 @@
 ;; LSP, diagnostics, formatting and the prog-mode display bits.
 ;; Per-language settings (servers, modes, hooks) live in dk-languages.el.
 
-(require 'dk-functions)                 ; `dk/xref-wait-for-eglot', `dk/no-clang-format-p'
+(require 'dk-functions)                 ; `dk/xref-wait-for-eglot', `dk/apheleia-inhibit-p'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Display in code buffers
@@ -24,6 +24,17 @@
 ;; Nested brackets coloured by depth, which is how a missing paren gets spotted.
 (use-package rainbow-delimiters
   :hook (prog-mode . rainbow-delimiters-mode))
+
+;; Re-evaluate the whole buffer -- only where the buffer *is* Emacs Lisp.  A
+;; global binding read Markdown, C or shell files as Lisp on a stray C-c e.
+;; `lisp-interaction-mode-map' (*scratch*) does not inherit from
+;; `emacs-lisp-mode-map', so it is named too.
+(use-package elisp-mode
+  :ensure nil                           ; built-in
+  :bind ((:map emacs-lisp-mode-map
+               ("C-c e" . eval-buffer))
+         (:map lisp-interaction-mode-map
+               ("C-c e" . eval-buffer))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LSP
@@ -62,15 +73,14 @@
   ;; The cost is a cold restart on the next visit; `dk/xref-wait-for-eglot'
   ;; covers the part of that which used to look like broken navigation.
   (setq eglot-autoshutdown t)
-  ;; Keep Markdown intact: Eglot renders fenced code itself.  Remove the old
-  ;; filter too when this module is reloaded in an existing session.
-  (advice-remove 'eglot--format-markup #'dk/eglot-clean-haskell-markdown)
   (add-hook 'eglot-server-initialized-hook #'dk/eglot-server-initialized)
   (add-hook 'eglot-managed-mode-hook #'dk/eglot-forget-connecting-server))
 
 ;; NOTE: `eglot-put-doc-in-buffer' and `eglot-code-actions-indications' were
-;; set here before, but neither exists in the eglot shipped with Emacs 30.2 —
-;; they were setting variables nothing ever reads.  Re-add on Emacs 31+.
+;; set here before, but neither exists in the eglot shipped with Emacs 31.1 --
+;; they set variables nothing reads.  31.1 does have the singular `eglot-code-action-indications'
+;; (default: eldoc hint, left fringe and margin); there is still no option for
+;; putting documentation in a buffer.  Left at the defaults on purpose.
 
 ;; Code navigation.  These are the stock bindings, restated so they are not
 ;; quietly taken over by a package -- with eglot running they are answered by
@@ -93,6 +103,21 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Diagnostics
+;; Since Emacs 30 the elisp byte-compile backend only runs in buffers covered
+;; by `trusted-content' (compiling expands macros, i.e. runs the file's code),
+;; and nothing is trusted by default -- so this config's own sources got no
+;; diagnostics at all.  Trust exactly the files written here and already
+;; executed at every startup; not the whole `user-emacs-directory', which also
+;; holds elpa/ and themes from elsewhere.  `trusted-content-p' matches against
+;; the abbreviated truename, hence `file-truename'; directory entries keep
+;; their trailing slash.  Appended, so a Customize value survives, and skipped
+;; when it is already `:all'.
+(when (listp trusted-content)
+  (let ((root (file-truename user-emacs-directory)))
+    (dolist (path '("src/" "test/" "init.el" "early-init.el"))
+      (add-to-list 'trusted-content
+                   (abbreviate-file-name (expand-file-name path root)) t))))
+
 ;; On-the-fly diagnostics.  eglot registers itself as a flymake backend, so in
 ;; an LSP buffer these are the server's errors; elsewhere it is whatever backend
 ;; the mode provides (elisp byte-compile, shellcheck, ...).
@@ -123,8 +148,12 @@
 (use-package apheleia
   :init (apheleia-global-mode +1)
   :config
-  ;; clang-format only where the tree actually asks for it
-  (add-to-list 'apheleia-inhibit-functions #'dk/no-clang-format-p))
+  ;; clang-format and fourmolu only where the tree asks for them, and never
+  ;; Emacs Lisp; see `dk/apheleia-inhibit-p'.  The predicate's old name is
+  ;; dropped so reloading this module over an older session leaves one entry.
+  (setq apheleia-inhibit-functions
+        (delq 'dk/no-clang-format-p apheleia-inhibit-functions))
+  (add-to-list 'apheleia-inhibit-functions #'dk/apheleia-inhibit-p))
 
 (provide 'dk-programming)
 ;;; dk-programming.el ends here

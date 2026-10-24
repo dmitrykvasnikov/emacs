@@ -61,7 +61,12 @@
   :config
   ;; Both Haskell packages define `run-haskell'.  Capture this package's
   ;; implementation, not an alias to the shared symbol that can be replaced.
-  (unless (fboundp 'dk/haskell-ts-run-repl)
+  ;; `fboundp' alone is not enough: the `:bind' above has already made the
+  ;; symbol an autoload for this file by the time `:config' runs, so it is
+  ;; bound but still undefined.  Once a real function has been captured, a
+  ;; reload after inf-haskell has replaced `run-haskell' must keep it.
+  (unless (and (fboundp 'dk/haskell-ts-run-repl)
+               (not (autoloadp (symbol-function 'dk/haskell-ts-run-repl))))
     (defalias 'dk/haskell-ts-run-repl (symbol-function 'run-haskell)
       "Start the tree-sitter mode's GHCi independently of classic Haskell's REPL."))
   (keymap-set haskell-ts-mode-map "C-c C-r" #'dk/haskell-ts-run-repl)
@@ -70,10 +75,10 @@
   ;; the first time the package is touched.  Drop it -- the remap alist decides.
   (setq auto-mode-alist (delete '("\\.hs\\'" . haskell-ts-mode) auto-mode-alist))
   ;; Upstream binds C-c C-f to `haskell-ts-format'.  apheleia already formats
-  ;; on save, so the manual command is only a way to reformat at a moment
-  ;; apheleia would not have picked -- not worth a key.  (It used to shadow the
-  ;; global `consult-find' as well; that binding has since moved to C-c f, so
-  ;; dropping this line no longer costs anything but the clutter.)
+  ;; on save in trees with a fourmolu.yaml (`dk/apheleia-inhibit-p'), and
+  ;; M-x apheleia-format-buffer covers the rest -- not worth a key.  (It used
+  ;; to shadow the global `consult-find' as well; that binding has since moved
+  ;; to C-c f, so dropping this line no longer costs anything but the clutter.)
   (keymap-unset haskell-ts-mode-map "C-c C-f" t))
 
 (defun dk/haskell-toggle-ts ()
@@ -132,15 +137,17 @@ buffers already open."
 (use-package go-ts-mode
   :ensure nil                           ; built-in
   :defer t
-  ;; Go indents with tabs; this is how wide one is displayed, 4 instead of the
-  ;; default 8.  It does not change what gofmt writes to the file.
+  ;; The offset is the indentation step; `dk/go-ts-tab-width' sets
+  ;; `tab-width' to match, so one level is one tab displayed 4 wide both
+  ;; while typing and after gofmt.  What gofmt writes is unaffected.
+  :hook (go-ts-mode . dk/go-ts-tab-width)
   :custom (go-ts-mode-indent-offset 4))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; C / C++ -- c-ts-mode does NOT derive from c-mode, so anything that used to
 ;; hang off `c-mode-hook' has to be re-pointed at the ts modes.  Formatting is
 ;; apheleia's, gated on .clang-format or _clang-format by
-;; `dk/no-clang-format-p'.
+;; `dk/apheleia-inhibit-p'.
 (use-package c-ts-mode
   :ensure nil                           ; built-in
   :defer t

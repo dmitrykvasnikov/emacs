@@ -21,7 +21,7 @@ or the searchable `C-h B` whenever the current buffer behaves differently.
 | Key | Action |
 | --- | --- |
 | `C-g` | Cancel the current command or prompt |
-| `Esc` | Cancel the current interaction (configured like `C-g`) |
+| `Esc` | Cancel the region, prefix argument, minibuffer or popup; never closes windows |
 | `M-x` | Run a command by name; if a minibuffer is already open elsewhere, move to it |
 | `C-h k` | Describe the command on a key, using Helpful |
 | `C-h f` | Describe a function or callable |
@@ -70,23 +70,25 @@ Which-key is enabled, so pausing after a prefix such as `C-x`, `C-c`, or
 | `M-d` / `M-DEL` | Kill the next / previous word |
 | `C-/` or `C-_` | Undo the latest change |
 | `C-x u` | Open the Vundo tree |
-| `C-=` | Expand the active region semantically |
+| `C-=` or `C-c v` | Expand the active region semantically |
 | `M-/` | Comment the active region, or the current line when no region is active |
 | `M-u` / `M-l` / `M-c` | Uppercase / lowercase / capitalize region or word at point |
-| `S-RET` | Open and indent a new line below without splitting the current line |
+| `S-RET` or `C-c o` | Open and indent a new line below without splitting the current line |
 | `M-q` | Fill the paragraph or mode-specific block |
 | `M-\` | Delete surrounding horizontal whitespace |
 
 Typing replaces an active region, matching common GUI editors. Matching closing
-parentheses, brackets, and quotes are inserted automatically.
+parentheses, brackets, and quotes are inserted automatically. Indentation uses
+spaces, except where the format needs tabs (Go, Makefiles); Go tabs display
+four columns wide.
 
 ### Multiple cursors
 
 | Key | Action |
 | --- | --- |
-| `C->` | Add the next occurrence of the active region or symbol |
-| `C-<` | Add the previous occurrence |
-| `C-c ;` | Mark all matching occurrences |
+| `C->` or `C-c n` | Add the next occurrence of the active region or symbol |
+| `C-<` or `C-c N` | Add the previous occurrence |
+| `C-c A` | Mark all matching occurrences |
 | `C-c l` | Put a cursor on every selected line |
 | `C-g` or `RET` | Leave multiple-cursors mode |
 
@@ -117,13 +119,22 @@ until confirming:
 | `C-x 4 b` | Switch to a buffer in another window (Consult) |
 | `C-x C-r` | Open a recent file (Consult) |
 | `C-x C-b` | Open Ibuffer instead of the basic buffer list |
-| `C-c k` | Kill the current buffer without asking which buffer |
+| `C-c k` | Kill the current buffer without asking which buffer (built-in `kill-current-buffer`) |
 | `C-x k` | Choose a buffer to kill |
 | `C-x C-j` | Open Dired in the current file's directory |
 
 Files changed externally are reloaded automatically when safe. Point positions,
-minibuffer history, search history, and up to 200 kill-ring entries persist
-between sessions.
+minibuffer history, search history (100 entries per ring), and up to 200
+kill-ring entries persist between sessions. The kill ring is saved as plain
+text without text properties, so anything copied, passwords included, ends up
+in `history`.
+
+Saving a file keeps three numbered backups in `backups/`, git-tracked files
+included (local files only). Auto-save files go to `autosave/` and file locks
+(`.#file`) to `locks/`, so neither appears in project directories. The recent
+file list (`C-x C-r`) skips package sources, backups, auto-saves, files under
+`/tmp`, and `COMMIT_EDITMSG`; it is saved after five idle minutes as well as on
+exit.
 
 ### Ibuffer essentials
 
@@ -136,6 +147,7 @@ between sessions.
 | `x` | Execute marked operations |
 | `g` | Refresh the list |
 | `q` | Quit Ibuffer |
+| `M-o` | Select the next window, as everywhere else |
 
 ## Windows
 
@@ -158,22 +170,29 @@ between sessions.
 | Key | Context | Action |
 | --- | --- | --- |
 | `C-s` | Ordinary buffer | Consult line search with live preview |
-| `C-S-s` | GUI frame | Repeat the previous Consult line search |
-| `C-r` | Ordinary buffer | Incremental backward search |
+| `C-S-s` or `C-c s` | Anywhere (`C-S-s` GUI only) | Repeat the previous Consult line search |
+| `C-r` | Ordinary buffer | Incremental backward search (isearch) |
 | `C-r` | Minibuffer, shell, or REPL | Search that prompt's history with Consult |
 | `C-c f` | Anywhere | Find a file below a chosen directory |
 | `M-s o` | Ordinary buffer | List matching lines with Occur |
 | `M-%` | Ordinary buffer | Query-replace literal text |
 | `C-M-%` | Ordinary buffer | Query-replace a regular expression |
 
-`C-S-s` cannot be distinguished from `C-s` by most terminals, so it starts a
-fresh search there.
+`C-s` and `C-r` are deliberately different tools: `C-s` lists matching lines
+in the minibuffer, while `C-r` is the stock in-buffer incremental search, so
+`C-r` after `C-s` does not reverse the search. Only isearch (`C-r`, `M-s .`,
+`C-M-s`) feeds the search history saved between sessions; Consult line search
+keeps its own history. `C-S-s` cannot be distinguished from `C-s` by most
+terminals, so it starts a fresh search there; use `C-c s` instead.
 
 ### Vertico prompts
 
 Completion is space-separated and orderless: typing `fi buf` can match
-`find-file-other-buffer`. File prompts retain partial path completion, so
-abbreviations such as `/u/s/l` can expand through directory components.
+`find-file-other-buffer`. File prompts try exact prefixes first (so TRAMP
+`/ssh:` host completion works), then partial path completion, so
+abbreviations such as `/u/s/l` can expand through directory components, and
+finally orderless, so `emacs init` finds `~/.config/emacs/init.el` in
+`C-x C-r`.
 
 | Key | Action |
 | --- | --- |
@@ -195,8 +214,8 @@ another one.
 
 | Key | Action |
 | --- | --- |
-| `C-.` | Show actions for the candidate or thing at point |
-| `C-;` | Run the most likely action immediately |
+| `C-.` or `C-c x` | Show actions for the candidate or thing at point |
+| `C-;` or `C-c X` | Run the most likely action immediately |
 | `C-h B` | Search all actions and bindings available here |
 
 For a reusable grep result buffer, run a Consult grep, press `C-. E` to export
@@ -205,13 +224,15 @@ it, then use `M-x wgrep-change-to-wgrep-mode` to edit matches. Finish with
 
 ### Corfu completion popup
 
-Corfu appears automatically after two characters. It uses Eglot completions in
-managed code buffers and file/word completion elsewhere.
+Corfu appears automatically after two characters, except in Org and Markdown,
+where it opens only on `TAB` or `M-TAB`. It uses Eglot completions in managed
+code buffers and file/word completion elsewhere. `RET` always inserts a newline
+(or sends input at a shell prompt); accept a candidate with `TAB`.
 
 | Key | Action while the popup is visible |
 | --- | --- |
 | `C-n` / `C-p` or `M-n` / `M-p` | Next / previous candidate |
-| `RET` or `TAB` | Insert the selected candidate |
+| `TAB` | Insert the selected candidate |
 | `M-d` | Toggle the documentation popup |
 | `M-l` | Show the selected candidate's source location |
 | `C-g` | Close the popup |
@@ -248,8 +269,11 @@ Use either prefix in this table:
 | `x` | `C-x p x` | Run `M-x` scoped to project-aware commands |
 | `C-x s` | `C-x p C-x s` | Save project buffers |
 
-Build and cache directories such as `dist-newstyle`, `target`, `build`,
-`vendor`, and `node_modules` are excluded from project file lists and searches.
+Generated directories such as `dist-newstyle`, `.stack-work`, `target`,
+`cmake-build-*`, and `node_modules` are excluded from project file lists and
+searches. Generic names like `build`, `dist`, and `vendor` are not, so tracked
+files under them stay visible; a project can add more through
+`project-vc-ignores` in its `.dir-locals.el`.
 
 ## Dired file manager
 
@@ -257,7 +281,8 @@ Build and cache directories such as `dist-newstyle`, `target`, `build`,
 window's Dired buffer. With two Dired windows open, copy and rename default to
 the other window's directory. Recursive copies and deletions do not ask an
 extra recursion question; deletions go to the desktop trash in interactive
-sessions.
+sessions. In remote (TRAMP) Dired buffers there is no trash, so deleting a
+directory asks for recursive confirmation first.
 
 | Key | Action |
 | --- | --- |
@@ -295,7 +320,13 @@ sessions.
 
 Eglot starts automatically for Haskell, Rust, C, C++, and Go buffers. Apheleia
 formats on save; C and C++ formatting is enabled only when the project contains
-`.clang-format` or `_clang-format`.
+`.clang-format` or `_clang-format`, Haskell only when it contains
+`fourmolu.yaml`, and Emacs Lisp is never formatted on save. Revert the buffer
+after adding such a file.
+
+Flymake shows Emacs Lisp byte-compiler diagnostics only in trusted files: this
+configuration's `src/`, `test/`, `init.el`, and `early-init.el`. Other Elisp
+files stay untrusted, because checking them runs their macros.
 
 Useful unbound commands are available through `M-x`:
 
@@ -358,8 +389,9 @@ prefix letters are the useful part to memorize first.
 
 ## Markdown
 
-Markdown files open in GFM mode. Markup and URLs are visually hidden until
-needed, prose wraps softly, and Pandoc backs preview/export commands.
+Markdown files open in GFM mode. Markup and URLs stay visible while editing;
+`C-c C-v` switches to a read-only rendered view that hides them. Prose wraps
+softly, and Pandoc backs preview/export commands.
 
 | Key | Action |
 | --- | --- |
@@ -367,7 +399,7 @@ needed, prose wraps softly, and Pandoc backs preview/export commands.
 | `RET` | Context-aware newline and list continuation |
 | `M-RET` | Insert a list item |
 | `C-c C-e` | Act on the item at point: toggle checkbox, follow link, renumber list, and so on |
-| `C-c C-v` | Toggle the read-only rendered GFM view |
+| `C-c C-v` | Toggle the read-only rendered GFM view; in the view, `C-c C-v` or `q` returns to editing |
 | `M-<up>` / `M-<down>` | Move the current list item or subtree |
 | `C-c C-l` | Insert a link |
 | `C-c C-o` | Follow the item at point |
@@ -409,6 +441,9 @@ needed, prose wraps softly, and Pandoc backs preview/export commands.
 
 The agenda scans Org files in `~/org`; run `M-x org-agenda` to open it.
 
+Sub- and superscripts are rendered and exported only in braces: `a_{1}` and
+`x^{2}`. Plain `snake_case` and `file_name` stay literal.
+
 ## Configuration and appearance
 
 | Key or command | Action |
@@ -417,5 +452,25 @@ The agenda scans Org files in `~/org`; run `M-x org-agenda` to open it.
 | `M-x dk/change-font` | Choose a configured font globally or for the current buffer |
 | `M-x dk/recompile-config` | Byte-compile `src/`; use `C-u` to force recompilation |
 | `M-x dk/treesit-install-all` | Install missing pinned tree-sitter grammars |
-| `C-c e` | Re-evaluate the current Emacs Lisp buffer |
+| `C-c e` | Re-evaluate the current buffer; Emacs Lisp and `*scratch*` only |
 | `C-c r` | Toggle CUA mode for a temporary `C-c`/`C-x`/`C-v` workflow |
+
+`M-x customize` saves to `custom.el`, which loads before the modules. It
+therefore works only for options that no module sets: a module's `setq`,
+`setopt`, or `use-package :custom` value overwrites the customized one at the
+next startup. To change such an option, edit the module or the `dk/*` variable
+it reads.
+
+## Terminal frames
+
+Most terminals cannot send `C-.`, `C-;`, `C-=`, `C->`, `C-<`, `S-RET`, or
+`C-S-s`. Each has a terminal-safe alternate that also works in GUI frames:
+
+| GUI key | Alternate | Action |
+| --- | --- | --- |
+| `C-.` | `C-c x` | Embark actions |
+| `C-;` | `C-c X` | Embark default action |
+| `C-=` | `C-c v` | Expand region |
+| `C->` / `C-<` | `C-c n` / `C-c N` | Multiple cursors: next / previous occurrence |
+| `S-RET` | `C-c o` | Open a new line below |
+| `C-S-s` | `C-c s` | Repeat the previous Consult line search |

@@ -4,19 +4,39 @@
 ;;
 ;; Everything here is about *how editing behaves*; how it looks is in ui.el.
 
-(require 'dk-vars)                      ; auto-save and backup directories
+(require 'dk-vars)                      ; auto-save, backup and lock directories
+(require 'dk-functions)                 ; `dk/savehist-strip-kill-ring'
 
 (setq use-short-answers t)              ; y/n instead of typing out yes/no
 
+;; Indent with spaces.  The default t mixed tabs into any line indented 8
+;; columns or more.  Modes whose formats need tabs (go-ts-mode, the makefile
+;; modes) set it back buffer-locally; a project with a tab convention sets it
+;; in its own .dir-locals.el.
+(setq-default indent-tabs-mode nil)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Files, backups and auto-save
-(setq create-lockfiles t)               ; warn when another Emacs edits the same file
+;; File locks (.#foo symlinks) warn when another Emacs edits the same file.
+;; They are collected in locks/ instead of beside the file, where they showed
+;; up in `git status' and set off file watchers.  Every local session applies
+;; the same transform, so locking between them still works; for TRAMP files
+;; the lock is now local too, so a session on the remote host no longer sees
+;; it -- an acceptable loss.
+(setq create-lockfiles t)
+(make-directory dk/lock-directory t)
+(setq lock-file-name-transforms `((".*" ,dk/lock-directory t)))
 
 ;; Keep three numbered backups per local file in one git-ignored directory.
 ;; The regexp matches ordinary absolute paths but not TRAMP names such as
 ;; /ssh:host:/path, so remote files retain Emacs' normal backup behaviour.
+;; `vc-make-backup-files' extends this to version-controlled files -- most of
+;; what is edited -- which Emacs otherwise never backs up.  A backup is made
+;; at the first save of each visit, so it holds the state before this
+;; session's edits, including any not yet committed.
 (make-directory dk/backup-directory t)
 (setq make-backup-files t
+      vc-make-backup-files t
       backup-directory-alist `(("\\`/[^/:]+/" . ,dk/backup-directory))
       version-control t
       kept-new-versions 3
@@ -49,11 +69,19 @@
 (savehist-mode 1)                       ; persist minibuffer history across sessions
 ;; Save histories that are not minibuffer histories themselves.  In
 ;; particular, `M-y' reads `kill-ring', which Savehist does not persist by
-;; default.
-(dolist (variable '((kill-ring . 200)
-                    (search-ring . 200)
-                    (regexp-search-ring . 200)))
+;; default.  The ring sizes below are the only limits: the rings trim
+;; themselves, so savehist gets no separate cap that could disagree.
+;;
+;; Persisting the kill ring is a deliberate choice: anything copied --
+;; passwords included -- is written in plain text to the history file.
+;; `dk/savehist-strip-kill-ring' drops text properties first, so the file holds
+;; plain strings rather than every entry's font-lock faces.
+(setq kill-ring-max 200
+      search-ring-max 100
+      regexp-search-ring-max 100)
+(dolist (variable '(kill-ring search-ring regexp-search-ring))
   (add-to-list 'savehist-additional-variables variable))
+(add-hook 'savehist-save-hook #'dk/savehist-strip-kill-ring)
 (save-place-mode 1)                     ; reopen files at the point last left there
 (global-auto-revert-mode 1)             ; reload files changed on disk (e.g. by git)
 (repeat-mode 1)                         ; repeat a chord's last key alone: C-x o o o
@@ -79,10 +107,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Search
 ;;
-;; These reach isearch through C-r and through the commands that start one
-;; themselves (isearch-forward-symbol-at-point, the C-M-s regexp searches,
-;; dired's C-s).  C-s itself is `consult-line' -- see dk-completion.el -- so
-;; the forward search does not go through here.
+;; The search keys are split on purpose: C-s is `consult-line' (a minibuffer
+;; list of matching lines -- see dk-completion.el) and C-r stays the stock
+;; `isearch-backward'.  They are different interfaces, so C-r after C-s does
+;; not reverse a search, and only isearch feeds the persisted `search-ring';
+;; consult-line keeps its own history.  These settings therefore reach
+;; isearch through C-r and through the commands that start one themselves
+;; (isearch-forward-symbol-at-point, the C-M-s regexp searches, dired's C-s).
 (setq isearch-allow-scroll t)           ; scroll commands don't exit the search
 (setq isearch-lazy-count t)             ; "3/17" in the prompt while typing
 (setq isearch-wrap-pause 'no-ding)      ; wrap past the end silently, no extra C-s
@@ -99,15 +130,22 @@
 ;; Editing helpers.  The binding lives here rather than in dk-keymap.el so that
 ;; `:bind' can autoload the package instead of loading it at startup.
 (use-package expand-region
-  :bind ("C-=" . er/expand-region))
+  :bind (("C-=" . er/expand-region)
+         ("C-c v" . er/expand-region))) ; terminal-safe alternate: no C-= there
 
 ;; Edit several occurrences or lines at once.  Use Eglot's semantic rename for
 ;; program symbols; these commands are for deliberately textual transformations.
+;; Mark-all sits on a `C-c <letter>' key, which Emacs reserves for the user:
+;; `C-c ;' (its old key) belongs to major modes, and org takes it for
+;; `org-toggle-comment'.
 (use-package multiple-cursors
   :bind (("C->"   . mc/mark-next-like-this)
          ("C-<"   . mc/mark-previous-like-this)
-         ("C-c ;" . mc/mark-all-like-this)
-         ("C-c l" . mc/edit-lines)))
+         ("C-c A" . mc/mark-all-like-this)
+         ("C-c l" . mc/edit-lines)
+         ;; Terminal-safe alternates: a terminal cannot send C-> or C-<.
+         ("C-c n" . mc/mark-next-like-this)
+         ("C-c N" . mc/mark-previous-like-this)))
 
 ;; Inspect and move through the buffer's ordinary undo history as a tree.  This
 ;; does not replace the undo implementation or need a permanent minor mode;

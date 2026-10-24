@@ -18,8 +18,12 @@
   ;; A list, not a string, so no shell quoting is involved.
   (markdown-command '("pandoc" "--from=gfm" "--to=html5" "--standalone"))
   (markdown-header-scaling t)               ;; # bigger than ##, bigger than ###
-  (markdown-hide-markup t)                  ;; set it, never toggle it in a hook
-  (markdown-hide-urls t)                    ;; [text](url) -> text ⚓
+  ;; Markup and URLs stay visible while editing: markdown-mode has no
+  ;; reveal-at-point like org-appear, so hidden markup is edited blind.  The
+  ;; rendered look is one C-c C-v away -- the view modes hide both on their
+  ;; own (`markdown-hide-markup-in-view-modes').
+  (markdown-hide-markup nil)
+  (markdown-hide-urls nil)
   (markdown-fontify-code-blocks-natively t) ;; ```rust blocks get rust highlighting
   (markdown-fontify-whole-heading-line t)   ;; heading face runs to the window edge
   (markdown-enable-math t)                  ;; $...$ / $$...$$ treated as LaTeX
@@ -29,13 +33,20 @@
   (markdown-asymmetric-header t)
   ;; Bullet drawn per nesting level (display only -- the file keeps its - and *).
   (markdown-list-item-bullets '("•" "◦" "▪" "▫"))
-  :bind (:map markdown-mode-map
-              ;; Context-sensitive: completes/toggles whatever is at point --
-              ;; ticks a checkbox, follows a link, renumbers a list item.
-              ("C-c C-e"  . markdown-do)
-              ("C-c C-v"  . gfm-view-mode)  ;; read-only fully-rendered view
-              ("M-<up>"   . markdown-move-up)    ;; move list item or subtree up
-              ("M-<down>" . markdown-move-down)))
+  :bind ((:map markdown-mode-map
+               ;; Context-sensitive: completes/toggles whatever is at point --
+               ;; ticks a checkbox, follows a link, renumbers a list item.
+               ("C-c C-e"  . markdown-do)
+               ;; Into the read-only rendered view and back out of it.
+               ("C-c C-v"  . dk/markdown-toggle-view)
+               ("M-<up>"   . markdown-move-up)    ;; move list item or subtree up
+               ("M-<down>" . markdown-move-down))
+         ;; `gfm-view-mode-map' is this same keymap object, so these cover
+         ;; both view modes.  q leaves the view instead of running upstream's
+         ;; `kill-current-buffer' on the file being read.
+         (:map markdown-view-mode-map
+               ("C-c C-v"  . dk/markdown-toggle-view)
+               ("q"        . dk/markdown-toggle-view))))
 
 ;; Pixel-accurate table alignment for both markdown and org: columns line up
 ;; even with CJK characters, emoji or a variable-pitch font, which the built-in
@@ -58,7 +69,17 @@
     (setq ispell-program-name spell-checker)
     (use-package flyspell
       :ensure nil
-      :hook ((markdown-mode org-mode) . flyspell-mode))))
+      :hook ((markdown-mode org-mode) . flyspell-mode)
+      ;; Leave C-M-i to `completion-at-point'.  Read when flyspell builds its
+      ;; keymap, so it has to be set before the package loads -- :custom is.
+      :custom (flyspell-use-meta-tab nil)
+      :config
+      ;; flyspell's auto-correct keys shadow the global `embark-act' (C-.) and
+      ;; `embark-dwim' (C-;) in every prose buffer.  Auto-correct stays on
+      ;; C-c $ (`flyspell-correct-word-before-point') and M-x; C-, (next
+      ;; error) is kept.
+      (keymap-unset flyspell-mode-map "C-." t)
+      (keymap-unset flyspell-mode-map "C-;" t))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Org
@@ -74,7 +95,12 @@
   (org-startup-indented t)                       ;; virtual indent, no leading stars
   (org-hide-emphasis-markers t)                  ;; /italic/ -> italic
   (org-pretty-entities t)                        ;; \alpha -> α
-  (org-pretty-entities-include-sub-superscripts t) ;; a_1 and x^2 rendered too
+  (org-pretty-entities-include-sub-superscripts t) ;; a_{1} and x^{2} rendered too
+  ;; ...but only the braced forms, in the buffer and on export.  The default t
+  ;; read every underscore after a word character as a subscript, so
+  ;; snake_case, my_file.txt and FOO_BAR were mangled.
+  (org-use-sub-superscripts '{})
+  (org-export-with-sub-superscripts '{})
   (org-ellipsis " ▾")                            ;; marker at the end of a folded heading
   (org-fontify-quote-and-verse-blocks t)         ;; distinct face for #+begin_quote
   (org-fontify-whole-heading-line t)             ;; heading face runs to the window edge
@@ -127,7 +153,7 @@
   :custom
   (org-appear-autoemphasis t)           ;; *bold* /italic/ (org-hide-emphasis-markers)
   (org-appear-autolinks t)              ;; the [[target][...]] half of a link
-  (org-appear-autosubmarkers t)         ;; a_1 / x^2 (org-pretty-entities-include-...)
+  (org-appear-autosubmarkers t)         ;; a_{1} / x^{2} (org-pretty-entities-include-...)
   (org-appear-autoentities t)           ;; \alpha (org-pretty-entities)
   (org-appear-delay 0.0))               ;; reveal at once, no idle wait
 

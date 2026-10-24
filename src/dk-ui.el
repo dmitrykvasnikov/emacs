@@ -111,7 +111,9 @@
 ;; Richer C-h: source, callers, current value, key bindings -- all in one buffer.
 (use-package helpful
   :custom
-  ;; How the buffer gets on screen; see dk-functions.el.
+  ;; How the buffer gets on screen: one reused helpful window, replaced in
+  ;; place when following links; q steps back, then closes it.  See
+  ;; dk-functions.el.
   (helpful-switch-buffer-function #'dk/helpful-open)
   :bind
   (("C-h f" . helpful-callable)

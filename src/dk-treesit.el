@@ -96,11 +96,17 @@ is non-nil."
 ;; when its grammar is absent; this must be chosen before rust-mode loads.
 (setq rust-mode-treesitter-derive (treesit-language-available-p 'rust))
 
+;; A warning, not a `message': missing grammars quietly put Go, YAML, CMake and
+;; Dockerfile files in text-mode (no LSP, no formatter), and under the daemon a
+;; startup message ends up in the journal where nobody reads it.
 (let ((missing (seq-remove #'treesit-language-available-p
                            (mapcar #'car treesit-language-source-alist))))
   (when missing
-    (message "Tree-sitter missing %s; run M-x dk/treesit-install-all, then restart Emacs"
-             missing)))
+    (display-warning
+     'dk-treesit
+     (format "Tree-sitter grammars missing: %s; run M-x dk/treesit-install-all, then restart Emacs"
+             missing)
+     :warning)))
 
 (provide 'dk-treesit)
 ;;; dk-treesit.el ends here

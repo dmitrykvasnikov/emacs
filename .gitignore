@@ -3,6 +3,9 @@ elpa/
 transient/
 tree-sitter/
 backups/
+autosave/
+locks/
+*.elc
 auto-save-list
 custom.el
 history

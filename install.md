@@ -146,8 +146,8 @@ Rustic's own format-on-save path are disabled. apheleia picks the tool from its 
 |---|---|---|---|
 | `rustfmt` | `rustup component add rustfmt` | `rustic-mode`, `rust-mode`, `rust-ts-mode` | |
 | `gofmt` | `go` | `go-ts-mode` | ships inside the `go` package |
-| `clang-format` | `clang` | `c-ts-mode`, `c++-ts-mode` | only runs in trees that contain `.clang-format` or `_clang-format` — `dk/no-clang-format-p` (`src/dk-functions.el`) inhibits it everywhere else |
-| `fourmolu` | `cabal install fourmolu` (or `ghcup`, or AUR `fourmolu-bin`) | `haskell-mode`, `haskell-ts-mode` | apheleia's Haskell default is fourmolu, **not** ormolu |
+| `clang-format` | `clang` | `c-ts-mode`, `c++-ts-mode` | only runs in trees that contain `.clang-format` or `_clang-format` — `dk/apheleia-inhibit-p` (`src/dk-functions.el`) inhibits it everywhere else |
+| `fourmolu` | `cabal install fourmolu` (or `ghcup`, or AUR `fourmolu-bin`) | `haskell-mode`, `haskell-ts-mode` | apheleia's Haskell default is fourmolu, **not** ormolu; only runs in trees that contain `fourmolu.yaml` (`dk/apheleia-inhibit-p`) |
 
 The `clang-format` package also provides the `clang-format` Emacs commands
 (`src/dk-languages.el`), which call the same binary.
@@ -214,8 +214,9 @@ harmless, but noisy. Install the ones you care about, or drop the entry from
 | `CMakeLists.txt`, `*.cmake` | `cmake-ts-mode` | `cmake-format` | AUR `cmake-format`, or `pipx install cmakelang` |
 | `Dockerfile`, `Containerfile` | `dockerfile-ts-mode` | `dprint` | Arch `extra/dprint` (`sudo pacman -S dprint`), or `cargo install dprint` |
 
-Emacs Lisp is formatted by apheleia's built-in `lisp-indent` — no external
-binary.
+Emacs Lisp is never formatted on save: `dk/apheleia-inhibit-p` turns apheleia
+off in every `lisp-data-mode` buffer. `M-x apheleia-format-buffer` still runs
+its built-in `lisp-indent` on demand — no external binary.
 
 Markdown is deliberately absent from `apheleia-mode-alist` upstream, so `.md`
 files are never reformatted on save.
